@@ -1,0 +1,10 @@
+# Static assets come ONLY from `public/` (never the repo root — avoids bundling node_modules).
+#
+# Cloudflare Pages: set Build output directory to "public" (not "." or repo root).
+# Wrangler: npx wrangler deploy
+name = "studio-locater"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[assets]
+directory = "public"

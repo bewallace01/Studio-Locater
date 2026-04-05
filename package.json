@@ -5,7 +5,9 @@
   "description": "Local server for Yelp-backed studio search",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "build": "node -e \"require('fs').accessSync('public/index.html'); console.log('OK: public/index.html')\"",
+    "deploy": "wrangler deploy"
   },
   "engines": {
     "node": ">=18"

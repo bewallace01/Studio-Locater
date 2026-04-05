@@ -83,7 +83,7 @@ function yelpBusinessToStudio(b, idx) {
   };
 }
 
-app.use(express.static(path.join(__dirname)));
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/studios', async (req, res) => {
   const lat = parseFloat(req.query.lat);
