@@ -130,6 +130,6 @@ app.get('/api/studios', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Serenity: http://localhost:${PORT}/`);
+  console.log(`Studio Locater: http://localhost:${PORT}/`);
   if (!YELP_KEY) console.log('Tip: add YELP_API_KEY to .env for live Yelp listings.');
 });
