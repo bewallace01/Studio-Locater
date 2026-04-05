@@ -1,0 +1,1587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Serenity — Find Your Studio</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blush:         #F9EAEA;
+      --blush-light:   #FDF6F6;
+      --rose:          #E8B4B8;
+      --rose-deep:     #C97E84;
+      --lavender:      #EDE5FA;
+      --lavender-deep: #B39DDB;
+      --gold:          #C9A96E;
+      --gold-light:    #F5E8C8;
+      --plum:          #3D2B3D;
+      --plum-mid:      #6B4C6B;
+      --plum-light:    #9E7E9E;
+      --off-white:     #FDF8F8;
+      --border:        #F0DCE0;
+      --shadow:        rgba(61,43,61,0.08);
+      --shadow-hover:  rgba(61,43,61,0.16);
+    }
+
+    html { scroll-behavior: smooth; }
+    body { font-family:'DM Sans',sans-serif; background:var(--off-white); color:var(--plum); line-height:1.6; -webkit-font-smoothing:antialiased; }
+    ::-webkit-scrollbar { width:5px; }
+    ::-webkit-scrollbar-track { background:var(--blush-light); }
+    ::-webkit-scrollbar-thumb { background:var(--rose); border-radius:3px; }
+
+    /* ═══════════════ CUSTOM CURSOR (pointer: fine only) ═══════════════ */
+    .cursor-layer {
+      position:fixed; left:0; top:0; width:0; height:0; overflow:visible;
+      pointer-events:none; z-index:10050; will-change:transform;
+    }
+    .cursor-lag { z-index:10050; }
+    .cursor-main { z-index:10051; }
+    .cursor-ring {
+      width:34px; height:34px; margin:-17px 0 0 -17px;
+      border-radius:50%;
+      border:2px solid rgba(201,126,132,.55);
+      background:rgba(253,248,248,.15);
+      backdrop-filter:blur(4px);
+      transition:transform .35s cubic-bezier(.34,1.56,.64,1),border-color .25s,background .25s,box-shadow .25s;
+    }
+    .cursor-dot {
+      width:7px; height:7px; margin:-3.5px 0 0 -3.5px;
+      border-radius:50%;
+      background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));
+      box-shadow:0 2px 10px rgba(201,126,132,.45);
+      transition:transform .25s,opacity .2s;
+    }
+    .cursor-hover-ico {
+      position:absolute; left:0; top:0;
+      width:36px; height:36px; margin:-18px 0 0 -18px;
+      border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      background:linear-gradient(145deg,var(--rose-deep),var(--lavender-deep));
+      color:#fff; font-size:13px;
+      box-shadow:0 6px 22px rgba(201,126,132,.42);
+      opacity:0; transform:scale(.35);
+      transition:opacity .22s,transform .38s cubic-bezier(.34,1.56,.64,1);
+      pointer-events:none;
+    }
+    .cursor-hover-ico i { filter:drop-shadow(0 1px 2px rgba(61,43,61,.2)); }
+    .cursor-main.is-hover .cursor-dot { opacity:0; transform:scale(0); }
+    .cursor-main.is-hover .cursor-hover-ico { opacity:1; transform:scale(1); }
+    .cursor-lag.is-hover .cursor-ring {
+      transform:scale(1.45);
+      border-color:rgba(179,157,219,.65);
+      background:rgba(255,255,255,.08);
+      box-shadow:0 0 0 1px rgba(255,255,255,.35) inset,0 8px 28px rgba(61,43,61,.12);
+    }
+    .cursor-layer.is-off { opacity:0; transition:opacity .2s; }
+
+    @media (pointer: fine) {
+      html.has-custom-cursor, html.has-custom-cursor * {
+        cursor:none !important;
+      }
+      html.has-custom-cursor input[type="text"],
+      html.has-custom-cursor input[type="email"],
+      html.has-custom-cursor input[type="password"],
+      html.has-custom-cursor input[type="search"],
+      html.has-custom-cursor input[type="url"],
+      html.has-custom-cursor input[type="tel"],
+      html.has-custom-cursor textarea {
+        cursor:text !important;
+      }
+      html.has-custom-cursor select {
+        cursor:pointer !important;
+      }
+    }
+
+    /* ═══════════════ NAV ═══════════════ */
+    nav {
+      position:fixed; top:0; left:0; right:0; z-index:1000;
+      padding:0 52px; height:72px;
+      display:flex; align-items:center; justify-content:space-between;
+      background:rgba(253,248,248,0.92); backdrop-filter:blur(20px);
+      border-bottom:1px solid var(--border); transition:box-shadow 0.3s;
+    }
+    nav.scrolled { box-shadow:0 4px 28px var(--shadow); }
+    .nav-logo { display:flex; align-items:center; gap:10px; text-decoration:none; cursor:pointer; }
+    .nav-logo-icon {
+      width:36px; height:36px; border-radius:50%;
+      background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));
+      display:flex; align-items:center; justify-content:center; color:#fff; font-size:15px;
+      transition:transform .45s cubic-bezier(.34,1.56,.64,1);
+    }
+    .nav-logo:hover .nav-logo-icon { transform:rotate(-10deg) scale(1.06); }
+    .nav-logo-text { font-family:'Playfair Display',serif; font-size:22px; font-weight:600; color:var(--plum); letter-spacing:.02em; }
+    .nav-links { display:flex; align-items:center; gap:28px; list-style:none; }
+    .nav-links a { text-decoration:none; color:var(--plum-mid); font-size:14px; font-weight:500; letter-spacing:.02em; cursor:pointer; transition:color 0.2s; }
+    .nav-links a:hover { color:var(--plum); }
+    .nav-cta {
+      background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep)) !important;
+      color:#fff !important; padding:10px 22px; border-radius:50px;
+      box-shadow:0 4px 16px rgba(201,126,132,.3); transition:opacity .2s,transform .2s !important;
+    }
+    .nav-cta:hover { opacity:.9 !important; transform:translateY(-1px) !important; }
+
+    /* ═══════════════ HERO ═══════════════ */
+    .hero {
+      --mx:0; --my:0;
+      min-height:100vh; padding-top:72px; padding-bottom:48px; position:relative;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden;
+      background:linear-gradient(155deg,#FDF6F6 0%,#F9EAEA 30%,#EDE5FA 65%,#DDD0F5 100%);
+    }
+    .hero-blob { position:absolute; border-radius:50%; pointer-events:none; transition:transform .55s cubic-bezier(.2,.8,.2,1); will-change:transform; }
+    .blob1 { width:560px;height:560px;background:radial-gradient(circle,rgba(232,180,184,.32) 0%,transparent 70%);top:-80px;right:-140px;transform:translate(calc(var(--mx)*32px),calc(var(--my)*22px)); }
+    .blob2 { width:380px;height:380px;background:radial-gradient(circle,rgba(179,157,219,.26) 0%,transparent 70%);bottom:40px;left:-80px;transform:translate(calc(var(--mx)*-20px),calc(var(--my)*-18px)); }
+    .blob3 { width:200px;height:200px;background:radial-gradient(circle,rgba(201,169,110,.18) 0%,transparent 70%);top:30%;left:10%;transform:translate(calc(var(--mx)*26px),calc(var(--my)*-14px)); }
+
+    /* Decorative floating rings */
+    .hero-ring {
+      position:absolute; border-radius:50%; border:1px solid rgba(201,126,132,0.18);
+      pointer-events:none; animation:ringPulse 6s ease-in-out infinite;
+    }
+    .ring1 { width:340px;height:340px;top:8%;right:5%; animation-delay:0s; }
+    .ring2 { width:180px;height:180px;top:15%;right:11%; animation-delay:1s; border-color:rgba(179,157,219,0.22); }
+    .ring3 { width:240px;height:240px;bottom:12%;left:4%; animation-delay:2s; border-color:rgba(179,157,219,0.18); }
+    @keyframes ringPulse {
+      0%,100% { transform:scale(1); opacity:0.6; }
+      50%      { transform:scale(1.04); opacity:1; }
+    }
+
+    .hero-content { position:relative;z-index:1;text-align:center;padding:64px 24px 36px;max-width:800px;width:100%; }
+    .hero-badge {
+      display:inline-flex;align-items:center;gap:7px;
+      background:rgba(255,255,255,.75);backdrop-filter:blur(12px);
+      border:1px solid rgba(232,180,184,.5);border-radius:50px;padding:6px 18px;
+      font-size:11.5px;font-weight:600;color:var(--plum-mid);letter-spacing:.06em;text-transform:uppercase;
+      margin-bottom:28px; animation:fadeUp .5s ease .1s both;
+    }
+    .hero-badge i { color:var(--gold); }
+    .hero h1 {
+      font-family:'Playfair Display',serif;
+      font-size:clamp(44px,7.5vw,74px);
+      font-weight:700;line-height:1.08;color:var(--plum);margin-bottom:22px;letter-spacing:-.025em;
+      animation:fadeUp .5s ease .2s both;
+    }
+    .hero h1 em { font-style:italic; color:transparent;
+      background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));
+      -webkit-background-clip:text; background-clip:text;
+    }
+    .hero-sub { font-size:17px;color:var(--plum-mid);max-width:460px;margin:0 auto 44px;line-height:1.75; animation:fadeUp .5s ease .3s both; }
+
+    /* Search card */
+    .search-card {
+      background:rgba(255,255,255,.92);backdrop-filter:blur(16px);border-radius:22px;padding:8px;
+      display:flex;align-items:center;
+      box-shadow:0 24px 64px rgba(61,43,61,.14),0 4px 16px rgba(61,43,61,.06),0 0 0 1px rgba(232,180,184,.2);
+      max-width:700px;width:100%;margin:0 auto; animation:fadeUp .5s ease .4s both;
+      transform-style:preserve-3d;transition:transform .2s ease-out,box-shadow .25s;
+    }
+    .search-card.is-tilting { box-shadow:0 28px 72px rgba(61,43,61,.16),0 8px 24px rgba(61,43,61,.08),0 0 0 1px rgba(232,180,184,.28); }
+    .search-field { display:flex;align-items:center;gap:8px;flex:1;padding:13px 18px; }
+    .search-field + .search-field { border-left:1px solid var(--border); }
+    .search-field i { color:var(--rose-deep);font-size:14px;flex-shrink:0; }
+    .search-field input { border:none;outline:none;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--plum);background:transparent;width:100%; }
+    .search-field input::placeholder { color:#C0A8C0; }
+    .loc-btn { background:none;border:none;cursor:pointer;color:var(--lavender-deep);font-size:13px;padding:4px;transition:color .2s;flex-shrink:0; }
+    .loc-btn:hover { color:var(--rose-deep); }
+    .search-btn {
+      background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));
+      color:#fff;border:none;padding:15px 30px;border-radius:16px;
+      font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;
+      white-space:nowrap;letter-spacing:.02em;
+      box-shadow:0 6px 20px rgba(201,126,132,.38);transition:opacity .2s,transform .2s;
+      display:flex;align-items:center;gap:7px;position:relative;overflow:hidden;
+    }
+    .search-btn:hover { opacity:.92;transform:translateY(-1px); }
+    .search-btn .ripple { position:absolute;border-radius:50%;background:rgba(255,255,255,.45);transform:scale(0);animation:rippleGo .6s ease-out forwards;pointer-events:none; }
+    @keyframes rippleGo { to { transform:scale(4); opacity:0; } }
+
+    .hero-stats { display:flex;justify-content:center;gap:44px;padding-top:40px;margin-top:32px;margin-bottom:12px;border-top:1px solid rgba(201,126,132,.18);position:relative;z-index:1;animation:fadeUp .5s ease .5s both; }
+    .stat { text-align:center; }
+    .stat-number { font-family:'Playfair Display',serif;font-size:30px;font-weight:700;color:var(--plum);display:block; }
+    .stat-label { font-size:11px;color:var(--plum-light);text-transform:uppercase;letter-spacing:.1em;font-weight:500;margin-top:2px;display:block; }
+
+    /* Wave divider */
+    .hero-wave { position:absolute;bottom:-1px;left:0;right:0;line-height:0;z-index:2;transform:translateY(14px); }
+    .hero-wave svg { width:100%;height:80px; }
+
+    .scroll-hint {
+      position:relative;z-index:10;flex-shrink:0;
+      display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:8px;
+      color:rgba(61,43,61,.55);font-size:10px;text-transform:uppercase;letter-spacing:.12em;font-weight:600;
+      cursor:pointer;animation:bounce 2.2s ease-in-out infinite;
+    }
+    .scroll-hint:focus-visible { outline:2px solid var(--rose-deep); outline-offset:6px; border-radius:10px; }
+    @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
+
+    /* ═══════════════ MAIN ═══════════════ */
+    #main { scroll-margin-top:80px; }
+    .main-section { padding:0 52px 100px;max-width:1440px;margin:0 auto; }
+    .section-header { display:flex;align-items:flex-end;justify-content:space-between;padding:52px 0 28px; }
+    .section-title { font-family:'Playfair Display',serif;font-size:30px;font-weight:600;color:var(--plum); }
+    .section-title span { display:block;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:400;color:var(--plum-light);margin-top:5px;letter-spacing:.02em; }
+
+    .reveal { opacity:0;transform:translateY(22px);transition:opacity .65s cubic-bezier(.2,.8,.2,1),transform .65s cubic-bezier(.2,.8,.2,1); }
+    .reveal.is-visible { opacity:1;transform:translateY(0); }
+    .reveal-delay-1 { transition-delay:.1s; }
+    .reveal-delay-2 { transition-delay:.2s; }
+    .view-toggle { display:flex;gap:3px;background:var(--blush);border-radius:12px;padding:4px; }
+    .view-btn { padding:8px 16px;border:none;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;color:var(--plum-light);background:transparent;display:flex;align-items:center;gap:6px; }
+    .view-btn.active { background:#fff;color:var(--plum);box-shadow:0 2px 10px var(--shadow); }
+
+    /* ═══════════════ FILTERS ═══════════════ */
+    .filters { display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:32px; }
+    .filter-label { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--plum-light);margin-right:2px; }
+    .filter-pill { display:flex;align-items:center;gap:7px;padding:8px 18px;border-radius:50px;border:1.5px solid var(--border);background:#fff;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--plum-mid);cursor:pointer;transition:all .2s;white-space:nowrap; }
+    .filter-pill:hover { border-color:var(--rose);color:var(--plum); }
+    .filter-pill.active { background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));border-color:transparent;color:#fff;box-shadow:0 4px 14px rgba(201,126,132,.32); }
+    .filter-pill i { font-size:12px; }
+    .filter-select { padding:8px 36px 8px 16px;border-radius:50px;border:1.5px solid var(--border);background:#fff;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236B4C6B' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:calc(100% - 13px) center;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--plum-mid);cursor:pointer;appearance:none;-webkit-appearance:none;outline:none;transition:border-color .2s; }
+    .filter-select:hover { border-color:var(--rose); }
+    .filter-select:focus { border-color:var(--rose-deep); }
+
+    /* ═══════════════ RESULTS ═══════════════ */
+    .results-layout { display:grid;grid-template-columns:1fr 420px;gap:28px;align-items:start; }
+    .cards-grid { display:grid;grid-template-columns:repeat(2,1fr);gap:20px; }
+    .no-results { grid-column:span 2;text-align:center;padding:60px 20px; }
+    .no-results svg { width:48px;height:48px;margin:0 auto 16px;display:block;opacity:.35; }
+    .no-results p { font-size:15px;color:var(--plum-light); }
+
+    /* ═══════════════ CARDS ═══════════════ */
+    .studio-card {
+      background:#fff;border-radius:22px;overflow:hidden;
+      box-shadow:0 4px 22px var(--shadow);
+      transition:transform .3s cubic-bezier(.34,1.56,.64,1),box-shadow .3s,border-color .2s;
+      cursor:pointer;border:1.5px solid transparent;
+      animation:cardEntrance .5s ease both;
+    }
+    @keyframes cardEntrance {
+      from { opacity:0; transform:translateY(18px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .studio-card:hover { transform:translateY(-6px);box-shadow:0 16px 48px var(--shadow-hover);border-color:var(--rose); }
+    .studio-card:hover .card-shine { opacity:1; }
+
+    /* Featured card */
+    .studio-card.featured {
+      grid-column:span 2;display:grid;grid-template-columns:1fr 1fr;
+      border:1.5px solid transparent;
+      background:linear-gradient(#fff,#fff) padding-box,
+                 linear-gradient(135deg,var(--rose),var(--lavender-deep)) border-box;
+      box-shadow:0 4px 22px var(--shadow), 0 0 0 1px transparent;
+    }
+    .studio-card.featured:hover {
+      transform:translateY(-6px);
+      box-shadow:0 16px 48px var(--shadow-hover), 0 0 28px rgba(201,126,132,.2);
+    }
+
+    .card-image { height:188px;position:relative;overflow:hidden; }
+    .studio-card.featured .card-image { height:100%;min-height:240px; }
+
+    /* Card shine sweep on hover */
+    .card-shine {
+      position:absolute;inset:0;opacity:0;
+      background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.22) 50%,transparent 60%);
+      transition:opacity .3s;pointer-events:none;
+    }
+
+    /* Subtle geometric pattern overlay on card images */
+    .card-pattern {
+      position:absolute;inset:0;
+      background-image:radial-gradient(circle at 75% 25%,rgba(255,255,255,.18) 0%,transparent 50%),
+                       radial-gradient(circle at 25% 75%,rgba(255,255,255,.12) 0%,transparent 45%);
+      mix-blend-mode:screen;
+    }
+
+    .g1{background:linear-gradient(140deg,#F5D0D5,#ECC8EC,#D4C4E8)}
+    .g2{background:linear-gradient(140deg,#FDE8D0,#F5C8C8,#E8BCC8)}
+    .g3{background:linear-gradient(140deg,#D8E8D8,#C8D8E8,#D0C8EC)}
+    .g4{background:linear-gradient(140deg,#F0D8EC,#E0D0F0,#D4C4F0)}
+    .g5{background:linear-gradient(140deg,#E8F0D8,#D8E8D0,#C8D8C8)}
+    .g6{background:linear-gradient(140deg,#F8D8E4,#F0C8D8,#E8B8D0)}
+    .g7{background:linear-gradient(140deg,#E0D8F8,#D0D0F4,#C8C4E8)}
+    .g8{background:linear-gradient(140deg,#F8E8D0,#F0D8BC,#E8C8B0)}
+
+    /* Large icon watermark on card */
+    .card-icon-mark {
+      position:absolute;right:-10px;bottom:-14px;
+      font-size:96px;color:rgba(255,255,255,.16);
+      line-height:1;transition:transform .4s ease;
+      pointer-events:none;
+    }
+    .studio-card:hover .card-icon-mark { transform:scale(1.06) rotate(4deg); }
+
+    .card-img-overlay { position:absolute;inset:0;background:linear-gradient(to top,rgba(61,43,61,.22) 0%,transparent 55%); }
+
+    .card-badge {
+      position:absolute;top:13px;left:13px;
+      display:flex;align-items:center;gap:5px;
+      background:rgba(255,255,255,.94);backdrop-filter:blur(8px);
+      border-radius:50px;padding:4px 12px;
+      font-size:10.5px;font-weight:700;color:var(--plum);letter-spacing:.05em;text-transform:uppercase;
+    }
+    .card-badge i { color:var(--gold);font-size:9px; }
+
+    .card-fave { position:absolute;top:13px;right:13px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.94);display:flex;align-items:center;justify-content:center;font-size:13px;color:#D4B8D4;cursor:pointer;transition:color .2s,transform .2s; }
+    .card-fave:hover { transform:scale(1.12);color:var(--rose-deep); }
+    .card-fave.loved { color:var(--rose-deep); }
+
+    .card-body { padding:18px 20px 20px; }
+    .card-meta { display:flex;align-items:center;justify-content:space-between;margin-bottom:7px; }
+    .card-rating { display:flex;align-items:center;gap:4px;font-size:13px;font-weight:600;color:var(--plum); }
+    .card-rating i { color:var(--gold);font-size:11px; }
+    .card-rating .rev { color:var(--plum-light);font-weight:400;font-size:12px; }
+    .card-price { font-size:13px;font-weight:600;color:var(--rose-deep); }
+    .card-name { font-family:'Playfair Display',serif;font-size:17px;font-weight:600;color:var(--plum);margin-bottom:5px;line-height:1.3; }
+    .card-addr { font-size:12px;color:var(--plum-light);margin-bottom:13px;display:flex;align-items:center;gap:4px; }
+    .card-addr i { font-size:10px;color:var(--rose); }
+    .card-tags { display:flex;flex-wrap:wrap;gap:5px; }
+    .tag { padding:3px 11px;border-radius:50px;font-size:11px;font-weight:600;letter-spacing:.02em; }
+    .t-pilates    { background:var(--blush);color:var(--rose-deep); }
+    .t-yoga       { background:var(--lavender);color:#7B5EA7; }
+    .t-reformer   { background:var(--gold-light);color:#8B6C14; }
+    .t-hot        { background:#FFE8E8;color:#C44040; }
+    .t-barre      { background:#E6F0E6;color:#4C7A4C; }
+    .t-meditation { background:#E8EAF8;color:#4C5CAE; }
+    .card-footer { display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:14px;border-top:1px solid var(--border); }
+    .card-dist { font-size:12px;color:var(--plum-light);display:flex;align-items:center;gap:4px; }
+    .card-dist i { font-size:11px;color:var(--rose); }
+    .card-btn { background:var(--blush);color:var(--rose-deep);border:none;padding:7px 16px;border-radius:50px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:.02em; }
+    .card-btn:hover { background:var(--rose-deep);color:#fff;box-shadow:0 4px 14px rgba(201,126,132,.3); }
+
+    /* ═══════════════ MAP ═══════════════ */
+    .map-wrap {
+      position:sticky;top:88px;border-radius:24px;overflow:hidden;
+      box-shadow:0 8px 36px var(--shadow),0 0 0 1px rgba(232,180,184,.25);
+      border:1.5px solid rgba(232,180,184,.3);
+    }
+    #map { height:620px;width:100%; }
+    .leaflet-container { font-family:'DM Sans',sans-serif !important; }
+    .leaflet-popup-content-wrapper { border-radius:18px !important;box-shadow:0 8px 32px rgba(61,43,61,.14) !important;border:1px solid var(--border) !important;padding:0 !important; }
+    .leaflet-popup-content { margin:0 !important; }
+    .leaflet-popup-tip { background:#fff !important; }
+    .map-popup { padding:16px 18px;min-width:210px; }
+    .mp-name { font-family:'Playfair Display',serif;font-size:15px;font-weight:600;color:var(--plum);margin-bottom:5px; }
+    .mp-row { display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--plum-mid);margin-bottom:9px; }
+    .mp-row i { color:var(--gold);font-size:11px; }
+    .mp-tags { display:flex;gap:4px;flex-wrap:wrap; }
+    .mp-book { display:block;width:100%;margin-top:10px;background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));color:#fff;border:none;padding:9px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;text-align:center; }
+
+    /* ═══════════════ MODAL BASE ═══════════════ */
+    .modal-overlay { position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;background:rgba(61,43,61,.45);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s; }
+    .modal-overlay.open { opacity:1;pointer-events:all; }
+    .modal { background:#fff;border-radius:28px;padding:40px;max-width:540px;width:90%;max-height:88vh;overflow-y:auto;position:relative;transform:translateY(24px);transition:transform .25s;scrollbar-width:thin; }
+    .modal-overlay.open .modal { transform:translateY(0); }
+    .modal-close { position:absolute;top:18px;right:18px;background:var(--blush);border:none;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:16px;color:var(--plum-mid);display:flex;align-items:center;justify-content:center;transition:background .2s; }
+    .modal-close:hover { background:var(--rose); }
+    .modal-title { font-family:'Playfair Display',serif;font-size:26px;font-weight:700;color:var(--plum);margin-bottom:6px; }
+    .modal-sub { font-size:14px;color:var(--plum-light);margin-bottom:28px; }
+
+    /* ═══════════════ BOOKING MODAL ═══════════════ */
+    .booking-studio-info { display:flex;align-items:center;gap:14px;padding:16px;background:var(--blush-light);border-radius:16px;margin-bottom:24px; }
+    .booking-studio-icon { width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;color:rgba(61,43,61,.3); }
+    .booking-studio-name { font-family:'Playfair Display',serif;font-size:16px;font-weight:600;color:var(--plum); }
+    .booking-studio-addr { font-size:12px;color:var(--plum-light);margin-top:2px; }
+    .day-tabs { display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:20px;scrollbar-width:none; }
+    .day-tabs::-webkit-scrollbar { display:none; }
+    .day-tab { flex-shrink:0;padding:8px 16px;border-radius:50px;border:1.5px solid var(--border);background:#fff;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;text-align:center; }
+    .day-tab .day-name { display:block;color:var(--plum-light); }
+    .day-tab .day-num { display:block;font-size:16px;color:var(--plum);margin-top:1px; }
+    .day-tab.active { background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));border-color:transparent;box-shadow:0 4px 12px rgba(201,126,132,.3); }
+    .day-tab.active .day-name,.day-tab.active .day-num { color:#fff; }
+    .class-list { display:flex;flex-direction:column;gap:12px; }
+    .class-item { display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--blush-light);border-radius:14px;transition:background .2s; }
+    .class-item:hover { background:var(--blush); }
+    .class-name { font-weight:600;color:var(--plum);font-size:14px; }
+    .class-meta { font-size:12px;color:var(--plum-light);margin-top:2px; }
+    .class-meta span { margin-right:10px; }
+    .class-spots { font-size:11px;margin-top:4px; }
+    .spots-low { color:#C44040;font-weight:600; }
+    .spots-ok  { color:#4C7A4C;font-weight:600; }
+    .class-right { text-align:right;flex-shrink:0;margin-left:12px; }
+    .class-price { font-weight:700;color:var(--plum);font-size:14px; }
+    .book-slot-btn { margin-top:6px;background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));color:#fff;border:none;padding:7px 14px;border-radius:50px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;transition:opacity .2s; }
+    .book-slot-btn:hover { opacity:.87; }
+
+    /* Booking success */
+    .booking-success { text-align:center;padding:20px 0; }
+    .booking-success-icon { width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));display:flex;align-items:center;justify-content:center;margin:0 auto 20px;box-shadow:0 8px 24px rgba(201,126,132,.35); }
+    .booking-success-icon i { font-size:30px;color:#fff; }
+    .booking-success h3 { font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--plum);margin-bottom:8px; }
+    .booking-success p { color:var(--plum-mid);font-size:14px;line-height:1.6; }
+    .booking-success-btn { margin-top:24px;background:var(--blush);color:var(--rose-deep);border:none;padding:12px 28px;border-radius:50px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer; }
+
+    /* ═══════════════ SIGNUP MODAL ═══════════════ */
+    .signup-hero { text-align:center;margin-bottom:28px; }
+    .signup-hero-icon { width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--blush),var(--lavender));border:2px solid var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:24px;color:var(--rose-deep); }
+    .form-group { margin-bottom:16px; }
+    .form-label { display:block;font-size:12px;font-weight:600;color:var(--plum-mid);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em; }
+    .form-input { width:100%;padding:12px 16px;border:1.5px solid var(--border);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--plum);outline:none;transition:border-color .2s;background:#fff; }
+    .form-input:focus { border-color:var(--rose-deep); }
+    .form-row { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
+    .form-select { width:100%;padding:12px 16px;border:1.5px solid var(--border);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--plum);outline:none;background:#fff;cursor:pointer;transition:border-color .2s;appearance:none; }
+    .form-select:focus { border-color:var(--rose-deep); }
+    .form-btn { width:100%;padding:14px;border-radius:50px;border:none;background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));color:#fff;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:opacity .2s,transform .2s;margin-top:8px; }
+    .form-btn:hover { opacity:.9;transform:translateY(-1px); }
+    .form-hint { text-align:center;font-size:12px;color:var(--plum-light);margin-top:14px; }
+    .form-hint a { color:var(--rose-deep);cursor:pointer;font-weight:600; }
+    .signup-perks { display:flex;flex-direction:column;gap:8px;margin-bottom:24px; }
+    .perk { display:flex;align-items:center;gap:10px;font-size:13px;color:var(--plum-mid); }
+    .perk i { color:var(--rose-deep);font-size:13px; }
+
+    /* ═══════════════ CLASSES MODAL ═══════════════ */
+    .classes-grid { display:grid;grid-template-columns:repeat(2,1fr);gap:12px; }
+    .class-type-card { padding:22px 18px;border-radius:16px;border:1.5px solid var(--border);text-align:center;cursor:pointer;transition:all .2s; }
+    .class-type-card:hover { border-color:var(--rose);background:var(--blush-light);transform:translateY(-2px); }
+    .class-type-icon { width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:18px; }
+    .class-type-name { font-family:'Playfair Display',serif;font-size:15px;font-weight:600;color:var(--plum); }
+    .class-type-count { font-size:12px;color:var(--plum-light);margin-top:3px; }
+
+    /* ═══════════════ TOAST ═══════════════ */
+    .toast-container { position:fixed;bottom:28px;right:28px;z-index:3000;display:flex;flex-direction:column;gap:8px;pointer-events:none; }
+    .toast { background:var(--plum);color:#fff;padding:12px 18px;border-radius:14px;font-size:13px;font-weight:500;box-shadow:0 8px 28px rgba(61,43,61,.28);display:flex;align-items:center;gap:10px;transform:translateX(120px);opacity:0;transition:all .32s cubic-bezier(.34,1.56,.64,1);pointer-events:all;max-width:300px; }
+    .toast.show { transform:translateX(0);opacity:1; }
+    .toast-icon { width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px; }
+    .toast-icon.success { background:rgba(76,122,76,.25); color:#7EC87E; }
+    .toast-icon.error   { background:rgba(196,64,64,.2); color:#E87E7E; }
+    .toast-icon.info    { background:rgba(179,157,219,.25); color:var(--lavender-deep); }
+    .toast-icon.heart   { background:rgba(201,126,132,.2); color:var(--rose); }
+    .toast-icon.loc     { background:rgba(201,169,110,.2); color:var(--gold); }
+
+    /* ═══════════════ SPINNER ═══════════════ */
+    .spinner { display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ═══════════════ FOOTER ═══════════════ */
+    footer { background:var(--plum);padding:64px 52px 40px;text-align:center;position:relative;overflow:hidden; }
+    footer::before { content:'';position:absolute;inset:0;background-image:radial-gradient(circle,rgba(232,180,184,.06) 1px,transparent 1px);background-size:24px 24px;pointer-events:none; }
+    .footer-logo { font-family:'Playfair Display',serif;font-size:32px;font-style:italic;color:#fff;margin-bottom:10px;position:relative; }
+    .footer-tag { font-size:14px;color:rgba(255,255,255,.5);margin-bottom:36px;position:relative; }
+    .footer-links { display:flex;justify-content:center;gap:32px;flex-wrap:wrap;list-style:none;margin-bottom:36px;position:relative; }
+    .footer-links a { color:rgba(255,255,255,.5);text-decoration:none;font-size:13px;cursor:pointer;transition:color .2s; }
+    .footer-links a:hover { color:#fff; }
+    .footer-divider { width:36px;height:2px;border-radius:2px;background:var(--rose);margin:0 auto 24px;position:relative; }
+    .footer-copy { font-size:12px;color:rgba(255,255,255,.28);position:relative; }
+
+    /* ═══════════════ ANIMATIONS ═══════════════ */
+    @keyframes fadeUp { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ═══════════════ RESPONSIVE ═══════════════ */
+    @media(max-width:1080px) {
+      .results-layout{grid-template-columns:1fr} .map-wrap{position:relative;top:0} #map{height:360px}
+      nav,.main-section,footer{padding-left:24px;padding-right:24px}
+    }
+    @media(prefers-reduced-motion:reduce) {
+      .hero-blob,.search-card,.nav-logo-icon,.reveal,.scroll-hint{transition:none !important;animation:none !important}
+      .hero{--mx:0 !important;--my:0 !important}
+      .blob1,.blob2,.blob3{transform:none !important}
+      .reveal{opacity:1;transform:none}
+      .cursor-ring,.cursor-dot,.cursor-hover-ico{transition:none !important}
+    }
+    @media (pointer: coarse) {
+      .cursor-layer { display:none !important; }
+    }
+    @media(max-width:640px) {
+      .cards-grid{grid-template-columns:1fr}
+      .studio-card.featured{grid-column:span 1;grid-template-columns:1fr}
+      .studio-card.featured .card-image{height:188px}
+      .hero-stats{gap:20px} .nav-links{display:none}
+      .search-card{flex-direction:column;border-radius:18px}
+      .search-field+.search-field{border-left:none;border-top:1px solid var(--border)}
+      .search-btn{width:100%;justify-content:center;border-radius:12px}
+      .modal{padding:28px 22px} .classes-grid{grid-template-columns:1fr} .form-row{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+
+<div id="cursorLag" class="cursor-layer cursor-lag" aria-hidden="true"><div class="cursor-ring"></div></div>
+<div id="cursorMain" class="cursor-layer cursor-main" aria-hidden="true">
+  <div class="cursor-dot"></div>
+  <div class="cursor-hover-ico"><i class="fa-solid fa-sparkles"></i></div>
+</div>
+
+<!-- ════════════ NAV ════════════ -->
+<nav id="navbar">
+  <a class="nav-logo" onclick="scrollToHero()">
+    <div class="nav-logo-icon"><i class="fa-solid fa-spa"></i></div>
+    <span class="nav-logo-text">Serenity</span>
+  </a>
+  <ul class="nav-links">
+    <li><a onclick="scrollToMain()">Explore</a></li>
+    <li><a onclick="openClasses()">Classes</a></li>
+    <li><a onclick="toast('Instructor profiles coming soon','info')">Instructors</a></li>
+    <li><a onclick="toast('Our blog launches next month','info')">Blog</a></li>
+    <li><a class="nav-cta" onclick="openSignup()">Sign Up Free</a></li>
+  </ul>
+</nav>
+
+<!-- ════════════ HERO ════════════ -->
+<section class="hero">
+  <div class="hero-blob blob1"></div>
+  <div class="hero-blob blob2"></div>
+  <div class="hero-blob blob3"></div>
+  <div class="hero-ring ring1"></div>
+  <div class="hero-ring ring2"></div>
+  <div class="hero-ring ring3"></div>
+
+  <div class="hero-content">
+    <div class="hero-badge">
+      <i class="fa-solid fa-location-dot"></i>
+      2,400+ studios across the US
+    </div>
+    <h1>Find Your <em>Perfect</em><br>Studio Nearby</h1>
+    <p class="hero-sub">Discover pilates, yoga &amp; wellness studios curated to your vibe, schedule, and budget.</p>
+    <div class="search-card">
+      <div class="search-field">
+        <i class="fa-solid fa-location-dot"></i>
+        <input type="text" id="locationInput" placeholder="City or neighborhood..." value="New York, NY">
+        <button class="loc-btn" onclick="useMyLocation()" title="Use my location"><i class="fa-solid fa-crosshairs"></i></button>
+      </div>
+      <div class="search-field">
+        <i class="fa-solid fa-spa"></i>
+        <input type="text" id="classInput" placeholder="Pilates, yoga, barre..." oninput="onClassSearch()">
+      </div>
+      <button class="search-btn" id="searchBtn" onclick="doSearch()">
+        <i class="fa-solid fa-magnifying-glass"></i> Search
+      </button>
+    </div>
+  </div>
+
+  <div class="scroll-hint" onclick="scrollToMain()" title="Scroll to studios" tabindex="0" role="button" onkeydown="scrollHintKey(event)">
+    <span>Explore</span>
+    <i class="fa-solid fa-chevron-down" style="font-size:12px"></i>
+  </div>
+
+  <div class="hero-stats">
+    <div class="stat"><span class="stat-number" data-count="2400" data-suffix="+">0</span><span class="stat-label">Studios</span></div>
+    <div class="stat"><span class="stat-number" data-count="98" data-suffix="k+">0</span><span class="stat-label">Reviews</span></div>
+    <div class="stat">
+      <span class="stat-number" style="display:flex;align-items:center;justify-content:center;gap:4px">
+        <span data-count="4.8" data-decimal="1">0</span> <i class="fa-solid fa-star" style="font-size:20px;color:var(--gold)"></i>
+      </span>
+      <span class="stat-label">Avg Rating</span>
+    </div>
+    <div class="stat"><span class="stat-number" data-count="340" data-suffix="+">0</span><span class="stat-label">Cities</span></div>
+  </div>
+
+  <!-- SVG Wave -->
+  <div class="hero-wave">
+    <svg viewBox="0 0 1440 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,40 C180,80 360,0 540,36 C720,72 900,8 1080,36 C1260,64 1380,24 1440,40 L1440,80 L0,80 Z" fill="#FDF8F8"/>
+    </svg>
+  </div>
+</section>
+
+<!-- ════════════ MAIN ════════════ -->
+<main class="main-section" id="main">
+  <div class="section-header reveal reveal-delay-1">
+    <div class="section-title">
+      Studios near you
+      <span id="resultsLabel">Showing 8 results · New York, NY</span>
+    </div>
+    <div class="view-toggle">
+      <button class="view-btn active" id="splitBtn" onclick="setView('split')"><i class="fa-solid fa-table-columns"></i> Split</button>
+      <button class="view-btn" id="listBtn" onclick="setView('list')"><i class="fa-solid fa-list"></i> List</button>
+      <button class="view-btn" id="mapBtn" onclick="setView('map')"><i class="fa-solid fa-map"></i> Map</button>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters reveal reveal-delay-2">
+    <span class="filter-label">Filter:</span>
+    <button class="filter-pill active" data-filter="All"        onclick="setFilter(this)"><i class="fa-solid fa-border-all"></i> All</button>
+    <button class="filter-pill"        data-filter="Yoga"       onclick="setFilter(this)"><i class="fa-solid fa-person-praying"></i> Yoga</button>
+    <button class="filter-pill"        data-filter="Pilates"    onclick="setFilter(this)"><i class="fa-solid fa-person-walking"></i> Pilates</button>
+    <button class="filter-pill"        data-filter="Hot Yoga"   onclick="setFilter(this)"><i class="fa-solid fa-fire"></i> Hot Yoga</button>
+    <button class="filter-pill"        data-filter="Barre"      onclick="setFilter(this)"><i class="fa-solid fa-music"></i> Barre</button>
+    <button class="filter-pill"        data-filter="Meditation" onclick="setFilter(this)"><i class="fa-solid fa-brain"></i> Meditation</button>
+    <select class="filter-select" id="distSelect" onchange="applyFilters()">
+      <option value="any">Any Distance</option>
+      <option value="0.5">Under 0.5 mi</option>
+      <option value="1">Under 1 mi</option>
+      <option value="2">Under 2 mi</option>
+      <option value="5">Under 5 mi</option>
+    </select>
+    <select class="filter-select" id="priceSelect" onchange="applyFilters()">
+      <option value="any">Any Price</option>
+      <option value="1">$ · Under $20</option>
+      <option value="2">$$ · $20–$40</option>
+      <option value="3">$$$ · $40+</option>
+    </select>
+    <select class="filter-select" id="sortSelect" onchange="applyFilters()">
+      <option value="rating">Top Rated</option>
+      <option value="distance">Nearest First</option>
+      <option value="price_asc">Price: Low → High</option>
+      <option value="price_desc">Price: High → Low</option>
+      <option value="reviews">Most Reviewed</option>
+    </select>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="results-layout" id="resultsLayout">
+    <div class="cards-grid" id="cardsGrid"></div>
+    <div class="map-wrap" id="mapWrap"><div id="map"></div></div>
+  </div>
+</main>
+
+<!-- ════════════ FOOTER ════════════ -->
+<footer>
+  <div class="footer-logo">Serenity</div>
+  <div class="footer-tag">Find your flow. Wherever you are.</div>
+  <ul class="footer-links">
+    <li><a onclick="toast('About page coming soon','info')">About</a></li>
+    <li><a onclick="toast('Partner with us — email hello@serenity.app','info')">For Studios</a></li>
+    <li><a onclick="toast('Blog launches next month','info')">Blog</a></li>
+    <li><a onclick="toast('Your privacy matters to us','info')">Privacy</a></li>
+    <li><a onclick="toast('Contact: hello@serenity.app','info')">Contact</a></li>
+  </ul>
+  <div class="footer-divider"></div>
+  <div class="footer-copy">© 2026 Serenity. Listings: OpenStreetMap / Nominatim, optional Yelp (run <code style="font-size:11px">npm start</code> + API key), plus demo spots nationwide.</div>
+</footer>
+
+<!-- ════════════ BOOKING MODAL ════════════ -->
+<div class="modal-overlay" id="bookingOverlay" onclick="closeModal('bookingOverlay')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeModal('bookingOverlay')"><i class="fa-solid fa-xmark"></i></button>
+    <div id="bookingContent"></div>
+  </div>
+</div>
+
+<!-- ════════════ SIGNUP MODAL ════════════ -->
+<div class="modal-overlay" id="signupOverlay" onclick="closeModal('signupOverlay')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeModal('signupOverlay')"><i class="fa-solid fa-xmark"></i></button>
+    <div id="signupContent">
+      <div class="signup-hero">
+        <div class="signup-hero-icon"><i class="fa-solid fa-spa"></i></div>
+        <div class="modal-title">Join Serenity</div>
+        <div class="modal-sub">Your wellness journey starts here.</div>
+      </div>
+      <div class="signup-perks">
+        <div class="perk"><i class="fa-solid fa-heart"></i> Save favourite studios &amp; classes</div>
+        <div class="perk"><i class="fa-solid fa-calendar-check"></i> Book classes in one tap</div>
+        <div class="perk"><i class="fa-solid fa-wand-magic-sparkles"></i> Get personalised recommendations</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">First Name</label><input class="form-input" type="text" placeholder="Sofia"></div>
+        <div class="form-group"><label class="form-label">Last Name</label><input class="form-input" type="text" placeholder="Chen"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" placeholder="you@example.com"></div>
+      <div class="form-group"><label class="form-label">Password</label><input class="form-input" type="password" placeholder="Min. 8 characters"></div>
+      <div class="form-group">
+        <label class="form-label">Favourite Class Type</label>
+        <select class="form-select">
+          <option>Yoga</option><option>Pilates</option><option>Hot Yoga</option>
+          <option>Barre</option><option>Reformer Pilates</option><option>Meditation</option>
+        </select>
+      </div>
+      <button class="form-btn" onclick="signupSuccess()">Create Free Account</button>
+      <div class="form-hint">Already have an account? <a onclick="toast('Login coming soon','info')">Sign in</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ CLASSES MODAL ════════════ -->
+<div class="modal-overlay" id="classesOverlay" onclick="closeModal('classesOverlay')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeModal('classesOverlay')"><i class="fa-solid fa-xmark"></i></button>
+    <div class="modal-title">Browse by Class Type</div>
+    <div class="modal-sub">Select a class type to filter studios near you.</div>
+    <div class="classes-grid">
+      <div class="class-type-card" onclick="filterFromModal('Yoga')">
+        <div class="class-type-icon" style="background:var(--lavender)"><i class="fa-solid fa-person-praying" style="color:#7B5EA7"></i></div>
+        <div class="class-type-name">Yoga</div>
+        <div class="class-type-count">5 studios nearby</div>
+      </div>
+      <div class="class-type-card" onclick="filterFromModal('Pilates')">
+        <div class="class-type-icon" style="background:var(--blush)"><i class="fa-solid fa-person-walking" style="color:var(--rose-deep)"></i></div>
+        <div class="class-type-name">Pilates</div>
+        <div class="class-type-count">5 studios nearby</div>
+      </div>
+      <div class="class-type-card" onclick="filterFromModal('Hot Yoga')">
+        <div class="class-type-icon" style="background:#FFE8E8"><i class="fa-solid fa-fire" style="color:#C44040"></i></div>
+        <div class="class-type-name">Hot Yoga</div>
+        <div class="class-type-count">2 studios nearby</div>
+      </div>
+      <div class="class-type-card" onclick="filterFromModal('Barre')">
+        <div class="class-type-icon" style="background:#E6F0E6"><i class="fa-solid fa-music" style="color:#4C7A4C"></i></div>
+        <div class="class-type-name">Barre</div>
+        <div class="class-type-count">2 studios nearby</div>
+      </div>
+      <div class="class-type-card" onclick="filterFromModal('Reformer')">
+        <div class="class-type-icon" style="background:var(--gold-light)"><i class="fa-solid fa-sliders" style="color:#8B6C14"></i></div>
+        <div class="class-type-name">Reformer</div>
+        <div class="class-type-count">2 studios nearby</div>
+      </div>
+      <div class="class-type-card" onclick="filterFromModal('Meditation')">
+        <div class="class-type-icon" style="background:#E8EAF8"><i class="fa-solid fa-brain" style="color:#4C5CAE"></i></div>
+        <div class="class-type-name">Meditation</div>
+        <div class="class-type-count">2 studios nearby</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ TOASTS ════════════ -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ════════════ SCRIPTS ════════════ -->
+<script>
+/* ══════════════════════════════════════
+   DATA
+══════════════════════════════════════ */
+const NOMINATIM_HEADERS = {
+  'Accept-Language':'en',
+  'User-Agent':'SerenityStudioLocator/1.0 (local demo; contact via site)'
+};
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function inferTagsFromText(t) {
+  const low = String(t).toLowerCase();
+  const tags = [];
+  if (/reformer/.test(low)) { tags.push('Pilates'); tags.push('Reformer'); }
+  else if (/pilates/.test(low)) tags.push('Pilates');
+  if (/hot\s*yoga|bikram|heated/.test(low)) tags.push('Hot Yoga');
+  else if (/yoga|vinyasa|ashtanga|yin/.test(low)) tags.push('Yoga');
+  if (/barre/.test(low)) tags.push('Barre');
+  if (/meditat|mindful|breath|zen/.test(low)) tags.push('Meditation');
+  if (!tags.length) tags.push('Yoga');
+  return [...new Set(tags)].slice(0, 5);
+}
+
+function pickIconFromTags(tags) {
+  if (tags.includes('Hot Yoga')) return 'fa-fire';
+  if (tags.includes('Meditation')) return 'fa-brain';
+  if (tags.includes('Barre')) return 'fa-music';
+  if (tags.includes('Pilates')) return 'fa-person-walking';
+  if (tags.includes('Yoga')) return 'fa-leaf';
+  return 'fa-spa';
+}
+
+function makePlaceholderClasses() {
+  const names = ['Morning Flow','Midday Reset','Evening Wind-down','Core Fundamentals'];
+  const types = ['Yoga','Pilates','Barre','Meditation'];
+  const times = ['7:00 AM','9:30 AM','12:00 PM','5:30 PM'];
+  const instructors = ['Alex M.','Jordan P.','Riley S.','Casey T.'];
+  return names.map((name,i)=>({
+    name, type: types[i], time: times[i], dur: '55 min', instructor: instructors[i],
+    spots: 3+Math.floor(Math.random()*8), price: 22+Math.floor(Math.random()*28)
+  }));
+}
+
+function hashId(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = Math.imul(31, h) + s.charCodeAt(i) | 0;
+  return 'osm_' + Math.abs(h).toString(36);
+}
+
+function placeToStudio(place, idx) {
+  const name = (place.name || place.display_name.split(',')[0] || 'Studio').trim();
+  const lat = parseFloat(place.lat), lng = parseFloat(place.lon);
+  const meta = `${name} ${place.class||''} ${place.type||''}`;
+  const tags = inferTagsFromText(meta);
+  return {
+    id: hashId(place.lat + '|' + place.lon + '|' + name),
+    name: name.length > 58 ? name.slice(0, 55) + '…' : name,
+    lat, lng,
+    rating: Math.round((4.35 + Math.random() * 0.55) * 10) / 10,
+    reviews: Math.floor(40 + Math.random() * 380),
+    priceLabel: '$$',
+    priceNum: 2,
+    address: place.display_name.split(',').slice(0, 4).join(',').trim(),
+    tags,
+    grad: 'g' + (1 + (idx % 8)),
+    icon: pickIconFromTags(tags),
+    badge: idx === 0 ? 'Nearby' : '',
+    classes: makePlaceholderClasses(),
+    _source: 'osm'
+  };
+}
+
+function buildStaticUsPool() {
+  const cities = [
+    ['New York',40.75,-73.98],['Los Angeles',34.05,-118.24],['Chicago',41.88,-87.62],
+    ['Houston',29.76,-95.36],['Phoenix',33.45,-112.07],['Philadelphia',39.95,-75.16],
+    ['San Antonio',29.42,-98.49],['San Diego',32.72,-117.16],['Dallas',32.78,-96.80],
+    ['Austin',30.26,-97.74],['San Jose',37.33,-121.88],['Jacksonville',30.33,-81.65],
+    ['Fort Worth',32.75,-97.33],['Columbus',39.96,-83.00],['Charlotte',35.22,-80.84],
+    ['San Francisco',37.77,-122.42],['Indianapolis',39.76,-86.15],['Seattle',47.60,-122.33],
+    ['Denver',39.73,-104.99],['Washington',38.90,-77.03],['Boston',42.36,-71.05],
+    ['Nashville',36.16,-86.78],['Detroit',42.33,-83.04],['Portland',45.51,-122.67],
+    ['Las Vegas',36.16,-115.13],['Memphis',35.14,-90.04],['Louisville',38.25,-85.75],
+    ['Baltimore',39.29,-76.61],['Milwaukee',43.03,-87.90],['Albuquerque',35.08,-106.65],
+    ['Tucson',32.22,-110.92],['Sacramento',38.58,-121.49],['Kansas City',39.09,-94.57],
+    ['Atlanta',33.74,-84.38],['Omaha',41.25,-96.00],['Raleigh',35.77,-78.64],
+    ['Miami',25.76,-80.19],['Oakland',37.80,-122.27],['Minneapolis',44.97,-93.26],
+    ['Tulsa',36.15,-95.99],['Cleveland',41.49,-81.69],['Arlington TX',32.73,-97.12],
+    ['Tampa',27.95,-82.45],['New Orleans',29.95,-90.07],['Honolulu',21.30,-157.85],
+    ['Salt Lake City',40.76,-111.89],['St. Louis',38.62,-90.19],['Pittsburgh',40.44,-79.99],
+    ['Anchorage',61.21,-149.90],['Boise',43.61,-116.20],['Des Moines',41.59,-93.62]
+  ];
+  const prefixes = ['Flow','Bloom','Align','Zen','Luna','Pulse','Radiant','Soul','Core','River','Sky','Garden','Breathe','Petal','Glow','Aura','Balance','Rise','Still','Nourish'];
+  const pool = [];
+  let id = 1;
+  cities.forEach(([city,la,ln]) => {
+    for (let i = 0; i < 3; i++) {
+      const p = prefixes[(id + i) % prefixes.length];
+      const kind = ['Yoga','Pilates','Barre'][i % 3];
+      const meta = `${p} ${kind} ${city} pilates yoga`;
+      const tags = inferTagsFromText(meta);
+      const pr = [1,2,3][id % 3];
+      pool.push({
+        id: id++,
+        name: `${p} ${kind} — ${city}`,
+        lat: la + (Math.random() - 0.5) * 0.07,
+        lng: ln + (Math.random() - 0.5) * 0.09,
+        rating: Math.round((4.25 + Math.random() * 0.65) * 10) / 10,
+        reviews: Math.floor(25 + Math.random() * 450),
+        priceLabel: ['$','$$','$$$'][pr - 1],
+        priceNum: pr,
+        address: `${200 + Math.floor(Math.random() * 700)} ${['Oak','Maple','Pine','River'][id%4]} St, ${city}`,
+        tags,
+        grad: 'g' + (1 + (id % 8)),
+        icon: pickIconFromTags(tags),
+        badge: '',
+        classes: makePlaceholderClasses(),
+        _source: 'demo'
+      });
+    }
+  });
+  return pool;
+}
+
+const STATIC_US_POOL = buildStaticUsPool();
+
+function filterStaticByDistance(lat, lng, maxMiles) {
+  return STATIC_US_POOL
+    .map(s => ({ ...s, distance: haversine(lat, lng, s.lat, s.lng) }))
+    .filter(s => s.distance <= maxMiles)
+    .sort((a, b) => a.distance - b.distance);
+}
+
+async function fetchNominatimStudios(lat, lng, label) {
+  const queries = [
+    `yoga pilates fitness studio ${label}`,
+    `pilates barre wellness ${label}`,
+    `yoga meditation ${label}`
+  ];
+  const seen = new Set();
+  const out = [];
+  for (const q of queries) {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=18`,
+        { headers: NOMINATIM_HEADERS }
+      );
+      const data = await res.json();
+      for (const p of data) {
+        const la = parseFloat(p.lat), lo = parseFloat(p.lon);
+        const key = `${Math.round(la * 1e4)}_${Math.round(lo * 1e4)}`;
+        if (seen.has(key)) continue;
+        const d = haversine(lat, lng, la, lo);
+        if (d > 200) continue;
+        seen.add(key);
+        out.push(placeToStudio(p, out.length));
+      }
+    } catch (e) {}
+    await sleep(1100);
+  }
+  return out;
+}
+
+function mergeStudioLists(remote, staticNear, lat, lng, max = 42) {
+  const list = [...remote];
+  const taken = new Set(list.map(s => `${Math.round(s.lat * 1e4)}_${Math.round(s.lng * 1e4)}`));
+  for (const s of staticNear) {
+    if (list.length >= max) break;
+    const k = `${Math.round(s.lat * 1e4)}_${Math.round(s.lng * 1e4)}`;
+    if (taken.has(k)) continue;
+    const tooClose = list.some(o => haversine(o.lat, o.lng, s.lat, s.lng) < 1.2);
+    if (tooClose) continue;
+    taken.add(k);
+    list.push({ ...s });
+  }
+  return list;
+}
+
+let studiosLoadToken = 0;
+
+function ensureStudioClasses(s) {
+  if (!s.classes || !s.classes.length) s.classes = makePlaceholderClasses();
+  return s;
+}
+
+function mergeRemoteDedupe(primary, secondary) {
+  const seen = new Set();
+  const out = [];
+  for (const s of [...primary, ...secondary]) {
+    const k = `${Math.round(s.lat * 1e4)}_${Math.round(s.lng * 1e4)}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(ensureStudioClasses({ ...s }));
+  }
+  return out;
+}
+
+async function fetchYelpStudios(lat, lng) {
+  try {
+    const origin = typeof window !== 'undefined' && window.location && window.location.origin
+      ? window.location.origin : '';
+    if (!origin || origin.startsWith('file')) return [];
+    const r = await fetch(`${origin}/api/studios?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`);
+    if (!r.ok) return [];
+    const j = await r.json();
+    if (j.error === 'no_key' || !Array.isArray(j.studios)) return [];
+    return j.studios.map(ensureStudioClasses);
+  } catch (e) {
+    return [];
+  }
+}
+
+async function loadStudiosNear(lat, lng, label) {
+  const myToken = ++studiosLoadToken;
+  const staticNear = filterStaticByDistance(lat, lng, 320);
+  let remote = [];
+  try {
+    const yelp = await fetchYelpStudios(lat, lng);
+    if (myToken !== studiosLoadToken) return;
+    let nom = [];
+    if (yelp.length < 15) {
+      nom = await fetchNominatimStudios(lat, lng, label);
+    }
+    if (myToken !== studiosLoadToken) return;
+    remote = mergeRemoteDedupe(yelp, nom);
+    if (!remote.length) {
+      remote = await fetchNominatimStudios(lat, lng, label);
+    }
+  } catch (e) {}
+  if (myToken !== studiosLoadToken) return;
+  let merged = mergeStudioLists(remote, staticNear, lat, lng, 45);
+  if (!merged.length) merged = staticNear.slice(0, 20);
+  studios = merged.map(ensureStudioClasses);
+  refreshDistances();
+  buildMapMarkers();
+  renderCards();
+}
+
+const TAG_CLASSES = {
+  "Pilates":"t-pilates","Yoga":"t-yoga","Reformer":"t-reformer",
+  "Hot Yoga":"t-hot","Barre":"t-barre","Meditation":"t-meditation"
+};
+
+/* ══════════════════════════════════════
+   STATE
+══════════════════════════════════════ */
+let state = {
+  center: { lat:40.738, lng:-73.988 },
+  locationLabel: "New York, NY",
+  activeFilter: "All",
+  classSearch: "",
+  distMax: "any",
+  priceFilter: "any",
+  sortBy: "rating",
+  favorites: new Set(),
+};
+
+let studios = [];
+
+function haversine(lat1,lon1,lat2,lon2) {
+  const R=3958.8, dLat=(lat2-lat1)*Math.PI/180, dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+
+function refreshDistances() {
+  studios.forEach(s => { s.distance = haversine(state.center.lat,state.center.lng,s.lat,s.lng); });
+}
+
+function syncStudiosFromStatic(lat, lng, maxMiles, cap) {
+  studios = filterStaticByDistance(lat, lng, maxMiles).slice(0, cap);
+  refreshDistances();
+}
+syncStudiosFromStatic(state.center.lat, state.center.lng, 420, 40);
+
+/* ══════════════════════════════════════
+   MAP
+══════════════════════════════════════ */
+const map = L.map('map', { center:[state.center.lat,state.center.lng], zoom:12, zoomControl:false });
+L.control.zoom({ position:'bottomright' }).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution:'© OpenStreetMap © CARTO', maxZoom:19
+}).addTo(map);
+
+const markerMap = {};
+
+function makeIcon(active=false) {
+  const size = active ? 32 : 26;
+  return L.divIcon({
+    className:'',
+    html:`<div style="width:${size}px;height:${size}px;background:linear-gradient(135deg,#C97E84,#B39DDB);border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 3px 12px rgba(61,43,61,${active?'.45':'.28'});transition:all .2s"></div>`,
+    iconSize:[size,size], iconAnchor:[size/2,size], popupAnchor:[0,-30]
+  });
+}
+
+function buildMapMarkers() {
+  Object.values(markerMap).forEach(m => map.removeLayer(m));
+  Object.keys(markerMap).forEach(k => delete markerMap[k]);
+  studios.forEach(s => {
+    const tagsHtml = s.tags.map(t =>
+      `<span class="tag ${TAG_CLASSES[t]||'t-yoga'}" style="padding:3px 9px;border-radius:50px;font-size:10.5px;font-weight:600">${t}</span>`
+    ).join('');
+    const sid = JSON.stringify(s.id);
+    const m = L.marker([s.lat,s.lng],{icon:makeIcon()})
+      .addTo(map)
+      .bindPopup(`<div class="map-popup">
+        <div class="mp-name">${s.name}</div>
+        <div class="mp-row"><i class="fa-solid fa-star"></i><strong>${s.rating}</strong>&nbsp;&nbsp;${s.priceLabel}&nbsp;&nbsp;<span style="color:var(--plum-light)">${s.distance.toFixed(1)} mi</span></div>
+        <div class="mp-tags">${tagsHtml}</div>
+        <button class="mp-book" onclick="openBooking(${sid})">Book a Class</button>
+      </div>`, {maxWidth:260});
+    markerMap[s.id] = m;
+  });
+}
+buildMapMarkers();
+
+function highlightMarker(id) {
+  Object.entries(markerMap).forEach(([sid,m]) => m.setIcon(makeIcon(String(sid)===String(id))));
+  if (id != null && markerMap[id]) markerMap[id].openPopup();
+}
+
+/* ══════════════════════════════════════
+   RENDER CARDS
+══════════════════════════════════════ */
+function applyFilters() {
+  state.distMax    = document.getElementById('distSelect').value;
+  state.priceFilter= document.getElementById('priceSelect').value;
+  state.sortBy     = document.getElementById('sortSelect').value;
+  renderCards();
+}
+
+function getFiltered() {
+  let list = [...studios];
+  if (state.activeFilter !== "All") list = list.filter(s => s.tags.includes(state.activeFilter));
+  if (state.classSearch) {
+    const q = state.classSearch;
+    list = list.filter(s => s.tags.some(t=>t.toLowerCase().includes(q))||s.name.toLowerCase().includes(q));
+  }
+  if (state.distMax !== "any") { const max=parseFloat(state.distMax); list=list.filter(s=>s.distance<=max); }
+  if (state.priceFilter !== "any") { const p=parseInt(state.priceFilter); list=list.filter(s=>s.priceNum===p); }
+  list.sort((a,b)=>{
+    if(state.sortBy==="rating")     return b.rating-a.rating;
+    if(state.sortBy==="distance")   return a.distance-b.distance;
+    if(state.sortBy==="price_asc")  return a.priceNum-b.priceNum;
+    if(state.sortBy==="price_desc") return b.priceNum-a.priceNum;
+    if(state.sortBy==="reviews")    return b.reviews-a.reviews;
+    return 0;
+  });
+  return list;
+}
+
+function tagHTML(t) { return `<span class="tag ${TAG_CLASSES[t]||'t-yoga'}">${t}</span>`; }
+
+function badgeHTML(s) {
+  if (!s.badge) return '';
+  const isTop = s.badge.includes('Top') || s.badge.includes('top');
+  return `<div class="card-badge">${isTop?'<i class="fa-solid fa-star"></i>':''} ${s.badge}</div>`;
+}
+
+function renderCards() {
+  const list   = getFiltered();
+  const grid   = document.getElementById('cardsGrid');
+  const label  = document.getElementById('resultsLabel');
+  label.textContent = `${list.length} result${list.length!==1?'s':''} · ${state.locationLabel}`;
+
+  if (!list.length) {
+    grid.innerHTML = `<div class="no-results">
+      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="22" cy="22" r="14" stroke="currentColor" stroke-width="2.5"/>
+        <path d="M32 32l8 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M18 22h8M22 18v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".4"/>
+      </svg>
+      <p>No studios match your filters.<br><span style="font-size:13px">Try adjusting distance or class type.</span></p>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map((s,i)=>{
+    const isFeatured = i===0 && state.sortBy==='rating' && state.activeFilter==='All' && !state.classSearch;
+    const loved = state.favorites.has(s.id);
+    const delay = `${i*0.07}s`;
+    const sid = JSON.stringify(s.id);
+    return `<div class="studio-card${isFeatured?' featured':''}"
+        style="animation-delay:${delay}"
+        onmouseenter="highlightMarker(${sid})"
+        onmouseleave="highlightMarker(null)">
+      <div class="card-image ${s.grad}">
+        <div class="card-pattern"></div>
+        <i class="fa-solid ${s.icon} card-icon-mark"></i>
+        <div class="card-img-overlay"></div>
+        <div class="card-shine"></div>
+        ${badgeHTML(s)}
+        <div class="card-fave${loved?' loved':''}" onclick="toggleFave(event,${sid})">
+          <i class="fa-${loved?'solid':'regular'} fa-heart"></i>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-meta">
+          <div class="card-rating">
+            <i class="fa-solid fa-star"></i>&nbsp;${s.rating}
+            <span class="rev">(${s.reviews.toLocaleString()})</span>
+          </div>
+          <div class="card-price">${s.priceLabel}</div>
+        </div>
+        <div class="card-name">${s.name}</div>
+        <div class="card-addr"><i class="fa-solid fa-location-dot"></i> ${s.address}</div>
+        <div class="card-tags">${s.tags.map(tagHTML).join('')}</div>
+        <div class="card-footer">
+          <div class="card-dist"><i class="fa-solid fa-person-walking"></i> ${s.distance.toFixed(1)} mi away</div>
+          <button class="card-btn" onclick="openBooking(${sid})">Book a Class</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+renderCards();
+(async () => {
+  await loadStudiosNear(state.center.lat, state.center.lng, state.locationLabel);
+})();
+
+/* ══════════════════════════════════════
+   SEARCH & GEOCODING
+══════════════════════════════════════ */
+async function doSearch() {
+  const locVal  = document.getElementById('locationInput').value.trim();
+  const clsVal  = document.getElementById('classInput').value.trim();
+  const btn     = document.getElementById('searchBtn');
+  if (!locVal) { toast('Please enter a location','error'); return; }
+  state.classSearch = clsVal.toLowerCase();
+  if (locVal.toLowerCase()===state.locationLabel.toLowerCase() && !clsVal) {
+    renderCards(); scrollToMain(); return;
+  }
+  btn.innerHTML = '<span class="spinner"></span> Searching...';
+  btn.disabled  = true;
+  try {
+    const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locVal)}&limit=1`,{headers:NOMINATIM_HEADERS});
+    const data = await res.json();
+    if (!data.length) {
+      toast(`Could not find "${locVal}" — try a city name`,'error');
+      btn.innerHTML='<i class="fa-solid fa-magnifying-glass"></i> Search'; btn.disabled=false; return;
+    }
+    const {lat,lon,display_name} = data[0];
+    state.center = {lat:parseFloat(lat),lng:parseFloat(lon)};
+    state.locationLabel = display_name.split(',').slice(0,2).join(',').trim();
+    toast('Loading studios nearby…','info');
+    await loadStudiosNear(state.center.lat, state.center.lng, state.locationLabel);
+    map.flyTo([state.center.lat,state.center.lng],12,{duration:1.2});
+    scrollToMain();
+    toast(`Showing studios near ${state.locationLabel}`,'loc');
+  } catch(e) {
+    toast('Search failed — check your connection','error');
+  }
+  btn.innerHTML='<i class="fa-solid fa-magnifying-glass"></i> Search'; btn.disabled=false;
+}
+
+function onClassSearch() {
+  state.classSearch = document.getElementById('classInput').value.toLowerCase();
+  renderCards();
+}
+
+document.getElementById('locationInput').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
+document.getElementById('classInput').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
+
+function useMyLocation() {
+  if (!navigator.geolocation) { toast('Geolocation not supported by this browser','error'); return; }
+  toast('Getting your location...','loc');
+  navigator.geolocation.getCurrentPosition(
+    async pos=>{
+      const lat = pos.coords.latitude, lng = pos.coords.longitude;
+      state.center = { lat, lng };
+      let label = 'Your Location';
+      try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, { headers: NOMINATIM_HEADERS });
+        const j = await r.json();
+        if (j.address) {
+          const a = j.address;
+          label = [a.city || a.town || a.village || a.hamlet || a.county, a.state].filter(Boolean).join(', ') || label;
+        }
+      } catch (e) {}
+      state.locationLabel = label;
+      document.getElementById('locationInput').value = label;
+      toast('Loading studios near you…','info');
+      await loadStudiosNear(lat, lng, label);
+      map.flyTo([lat, lng], 11, { duration: 1.2 });
+      scrollToMain();
+      toast('Studios updated for your area','success');
+    },
+    ()=>toast('Could not get your location — check permissions','error')
+  );
+}
+
+/* ══════════════════════════════════════
+   FILTERS & VIEW
+══════════════════════════════════════ */
+function setFilter(el) {
+  document.querySelectorAll('.filter-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  state.activeFilter = el.dataset.filter;
+  renderCards();
+}
+
+function filterFromModal(type) {
+  closeModal('classesOverlay');
+  const pill = [...document.querySelectorAll('.filter-pill')].find(p=>p.dataset.filter===type);
+  if (pill) setFilter(pill);
+  scrollToMain();
+}
+
+function setView(v) {
+  const layout=document.getElementById('resultsLayout'),mapWrap=document.getElementById('mapWrap'),grid=document.getElementById('cardsGrid');
+  ['split','list','map'].forEach(n=>document.getElementById(n+'Btn').classList.remove('active'));
+  document.getElementById(v+'Btn').classList.add('active');
+  if(v==='split'){layout.style.gridTemplateColumns='1fr 420px';grid.style.display='grid';mapWrap.style.display='block';}
+  else if(v==='list'){layout.style.gridTemplateColumns='1fr';grid.style.display='grid';mapWrap.style.display='none';}
+  else{layout.style.gridTemplateColumns='1fr';grid.style.display='none';mapWrap.style.display='block';document.getElementById('map').style.height='680px';}
+  setTimeout(()=>map.invalidateSize(),80);
+}
+
+/* ══════════════════════════════════════
+   FAVOURITES
+══════════════════════════════════════ */
+function toggleFave(event,id) {
+  event.stopPropagation();
+  if(state.favorites.has(id)){state.favorites.delete(id);toast('Removed from favourites','heart');}
+  else{state.favorites.add(id);toast('Saved to favourites','heart');}
+  renderCards();
+}
+
+/* ══════════════════════════════════════
+   BOOKING MODAL
+══════════════════════════════════════ */
+const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+let bookingStudio=null;
+
+function openBooking(id) {
+  bookingStudio = studios.find(s => String(s.id) === String(id));
+  if(!bookingStudio) return;
+  renderBookingModal();
+  document.getElementById('bookingOverlay').classList.add('open');
+}
+
+function renderBookingModal() {
+  const s=bookingStudio, today=new Date();
+  const dayTabsHTML=Array.from({length:7},(_,i)=>{
+    const d=new Date(today); d.setDate(today.getDate()+i);
+    return `<div class="day-tab${i===0?' active':''}" onclick="selectDay(this)">
+      <span class="day-name">${DAYS[d.getDay()]}</span>
+      <span class="day-num">${d.getDate()}</span>
+    </div>`;
+  }).join('');
+  const classesHTML=s.classes.map(c=>{
+    const low=c.spots<=3;
+    return `<div class="class-item">
+      <div class="class-info">
+        <div class="class-name">${c.name}</div>
+        <div class="class-meta">
+          <span><i class="fa-regular fa-clock" style="font-size:10px"></i> ${c.time} · ${c.dur}</span>
+          <span><i class="fa-solid fa-user" style="font-size:10px"></i> ${c.instructor}</span>
+        </div>
+        <div class="class-spots ${low?'spots-low':'spots-ok'}">
+          <i class="fa-solid ${low?'fa-triangle-exclamation':'fa-circle-check'}" style="font-size:10px"></i>
+          ${low?`Only ${c.spots} spots left`:`${c.spots} spots available`}
+        </div>
+      </div>
+      <div class="class-right">
+        <div class="class-price">$${c.price}</div>
+        <button class="book-slot-btn" onclick="confirmBooking('${c.name}','${c.time}')">Book</button>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('bookingContent').innerHTML=`
+    <div class="modal-title">Book a Class</div>
+    <div class="modal-sub">Choose a time that works for you.</div>
+    <div class="booking-studio-info">
+      <div class="booking-studio-icon ${s.grad}"><i class="fa-solid ${s.icon}"></i></div>
+      <div>
+        <div class="booking-studio-name">${s.name}</div>
+        <div class="booking-studio-addr"><i class="fa-solid fa-location-dot" style="color:var(--rose);font-size:10px"></i> ${s.address}</div>
+      </div>
+    </div>
+    <div class="day-tabs">${dayTabsHTML}</div>
+    <div class="class-list">${classesHTML}</div>
+  `;
+}
+
+function selectDay(el) {
+  document.querySelectorAll('.day-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function confirmBooking(name,time) {
+  document.getElementById('bookingContent').innerHTML=`
+    <div class="booking-success">
+      <div class="booking-success-icon"><i class="fa-solid fa-check"></i></div>
+      <h3>You're booked!</h3>
+      <p><strong>${name}</strong> at <strong>${time}</strong><br><strong>${bookingStudio.name}</strong><br><br>A confirmation has been sent to your email.</p>
+      <button class="booking-success-btn" onclick="closeModal('bookingOverlay')">Done</button>
+    </div>
+  `;
+}
+
+/* ══════════════════════════════════════
+   SIGNUP & CLASSES MODALS
+══════════════════════════════════════ */
+function openSignup()  { document.getElementById('signupOverlay').classList.add('open'); }
+function openClasses() { document.getElementById('classesOverlay').classList.add('open'); }
+
+function signupSuccess() {
+  document.getElementById('signupContent').innerHTML=`
+    <div class="booking-success">
+      <div class="booking-success-icon"><i class="fa-solid fa-spa"></i></div>
+      <h3>Welcome to Serenity!</h3>
+      <p>Your account is ready. Start exploring studios, saving favourites, and booking classes.</p>
+      <button class="booking-success-btn" onclick="closeModal('signupOverlay');scrollToMain()">Start Exploring</button>
+    </div>
+  `;
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')['bookingOverlay','signupOverlay','classesOverlay'].forEach(closeModal);
+});
+
+/* ══════════════════════════════════════
+   TOASTS
+══════════════════════════════════════ */
+const TOAST_ICONS = {
+  success:{ cls:'success', icon:'fa-circle-check' },
+  error:  { cls:'error',   icon:'fa-circle-exclamation' },
+  info:   { cls:'info',    icon:'fa-circle-info' },
+  heart:  { cls:'heart',   icon:'fa-heart' },
+  loc:    { cls:'loc',     icon:'fa-location-dot' },
+};
+function toast(msg,type='info') {
+  const cfg=TOAST_ICONS[type]||TOAST_ICONS.info;
+  const c=document.getElementById('toastContainer');
+  const el=document.createElement('div');
+  el.className='toast';
+  el.innerHTML=`<div class="toast-icon ${cfg.cls}"><i class="fa-solid ${cfg.icon}"></i></div>${msg}`;
+  c.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(),350); },3200);
+}
+
+/* ══════════════════════════════════════
+   SCROLL & NAV
+══════════════════════════════════════ */
+function scrollToMain() { document.getElementById('main').scrollIntoView({behavior:'smooth'}); }
+function scrollToHero() { window.scrollTo({top:0,behavior:'smooth'}); }
+window.addEventListener('scroll',()=>{
+  document.getElementById('navbar').classList.toggle('scrolled',window.scrollY>20);
+});
+
+function scrollHintKey(e) {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); scrollToMain(); }
+}
+
+function initHeroParallax() {
+  const hero = document.querySelector('.hero');
+  if (!hero) return;
+  hero.addEventListener('mousemove', e => {
+    const r = hero.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    hero.style.setProperty('--mx', px.toFixed(4));
+    hero.style.setProperty('--my', py.toFixed(4));
+  });
+  hero.addEventListener('mouseleave', () => {
+    hero.style.setProperty('--mx', 0);
+    hero.style.setProperty('--my', 0);
+  });
+}
+
+function initSearchTilt() {
+  const card = document.querySelector('.search-card');
+  if (!card) return;
+  card.addEventListener('mousemove', e => {
+    const r = card.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - 0.5;
+    const y = (e.clientY - r.top) / r.height - 0.5;
+    card.classList.add('is-tilting');
+    card.style.transform = `perspective(920px) rotateX(${(-y * 9).toFixed(3)}deg) rotateY(${(x * 9).toFixed(3)}deg)`;
+  });
+  card.addEventListener('mouseleave', () => {
+    card.classList.remove('is-tilting');
+    card.style.transform = '';
+  });
+}
+
+function animateStatInt(el, target, suffix) {
+  const dur = 1100;
+  const t0 = performance.now();
+  function frame(now) {
+    const t = Math.min(1, (now - t0) / dur);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = Math.round(target * eased).toLocaleString() + suffix;
+    if (t < 1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+function animateStatDecimal(el, target, decimals) {
+  const dur = 1100;
+  const t0 = performance.now();
+  function frame(now) {
+    const t = Math.min(1, (now - t0) / dur);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = (target * eased).toFixed(decimals);
+    if (t < 1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+function initStatsCount() {
+  const wrap = document.querySelector('.hero-stats');
+  if (!wrap) return;
+  const obs = new IntersectionObserver(entries => {
+    if (!entries[0].isIntersecting) return;
+    obs.disconnect();
+    wrap.querySelectorAll('[data-count]').forEach(el => {
+      const target = parseFloat(el.dataset.count);
+      const suffix = el.dataset.suffix || '';
+      if (el.dataset.decimal !== undefined) {
+        animateStatDecimal(el, target, parseInt(el.dataset.decimal, 10) || 1);
+      } else {
+        animateStatInt(el, Math.round(target), suffix);
+      }
+    });
+  }, { threshold: 0.28 });
+  obs.observe(wrap);
+}
+
+function initReveal() {
+  document.querySelectorAll('.reveal').forEach(el => {
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(en => {
+        if (en.isIntersecting) {
+          en.target.classList.add('is-visible');
+          obs.unobserve(en.target);
+        }
+      });
+    }, { threshold: 0.08, rootMargin: '0px 0px -24px 0px' });
+    obs.observe(el);
+  });
+}
+
+function initRippleSearch() {
+  const btn = document.getElementById('searchBtn');
+  if (!btn) return;
+  btn.addEventListener('click', function(e) {
+    const r = this.getBoundingClientRect();
+    const sp = document.createElement('span');
+    const size = Math.max(r.width, r.height) * 1.4;
+    sp.className = 'ripple';
+    sp.style.width = sp.style.height = size + 'px';
+    sp.style.left = e.clientX - r.left - size / 2 + 'px';
+    sp.style.top = e.clientY - r.top - size / 2 + 'px';
+    this.appendChild(sp);
+    setTimeout(() => sp.remove(), 650);
+  });
+}
+
+const CURSOR_INTERACTIVE = 'a,button,[role="button"],label,.studio-card,.filter-pill,.view-btn,.loc-btn,.card-fave,.card-btn,.scroll-hint,.day-tab,.class-type-card,.modal-close,.book-slot-btn,.form-btn,.mp-book,.footer-links a,.nav-logo,.class-item,.filter-select,.perk,.leaflet-interactive,.leaflet-popup-close-button,.toast';
+
+function cursorIsNativeField(el) {
+  if (!el || !el.closest) return false;
+  if (el.closest('select')) return true;
+  const n = el.closest('input,textarea');
+  if (!n) return false;
+  if (n.tagName === 'TEXTAREA') return true;
+  const type = (n.type || 'text').toLowerCase();
+  return ['text','email','password','search','url','tel',''].includes(type);
+}
+
+function initCustomCursor() {
+  if (!window.matchMedia('(pointer: fine)').matches) return;
+  const lag = document.getElementById('cursorLag');
+  const main = document.getElementById('cursorMain');
+  if (!lag || !main) return;
+  document.documentElement.classList.add('has-custom-cursor');
+  let mx = window.innerWidth / 2;
+  let my = window.innerHeight / 2;
+  let ix = mx, iy = my, rx = mx, ry = my;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const smoothIn = reduce ? 1 : 0.42;
+  const smoothLag = reduce ? 1 : 0.14;
+
+  function setHover(on) {
+    main.classList.toggle('is-hover', on);
+    lag.classList.toggle('is-hover', on);
+  }
+
+  function tick() {
+    ix += (mx - ix) * smoothIn;
+    iy += (my - iy) * smoothIn;
+    rx += (mx - rx) * smoothLag;
+    ry += (my - ry) * smoothLag;
+    main.style.transform = `translate3d(${ix}px,${iy}px,0)`;
+    lag.style.transform = `translate3d(${rx}px,${ry}px,0)`;
+    requestAnimationFrame(tick);
+  }
+
+  document.addEventListener('mousemove', e => {
+    mx = e.clientX;
+    my = e.clientY;
+    const t = e.target;
+    if (cursorIsNativeField(t)) {
+      setHover(false);
+      lag.classList.add('is-off');
+      main.classList.add('is-off');
+      return;
+    }
+    const hit = t.closest(CURSOR_INTERACTIVE);
+    setHover(!!hit);
+    lag.classList.remove('is-off');
+    main.classList.remove('is-off');
+  }, { passive: true });
+
+  document.documentElement.addEventListener('mouseleave', () => {
+    lag.classList.add('is-off');
+    main.classList.add('is-off');
+  });
+  tick();
+}
+
+(function initUiPolish() {
+  initCustomCursor();
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) {
+    document.querySelectorAll('.hero-stats [data-count]').forEach(el => {
+      const target = parseFloat(el.dataset.count);
+      const suffix = el.dataset.suffix || '';
+      if (el.dataset.decimal !== undefined) {
+        el.textContent = target.toFixed(parseInt(el.dataset.decimal, 10) || 1);
+      } else {
+        el.textContent = Math.round(target).toLocaleString() + suffix;
+      }
+    });
+  } else {
+    initHeroParallax();
+    initSearchTilt();
+    initStatsCount();
+  }
+  initReveal();
+  initRippleSearch();
+})();
+</script>
+</body>
+</html>
