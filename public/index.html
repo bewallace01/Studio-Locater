@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- When set, map + listings use only your Sanity studio documents (no Yelp/Nominatim/static pool). -->
+  <meta name="sanity-project-id" content="">
+  <meta name="sanity-dataset" content="production">
   <title>Studio Locater — Find Your Studio</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -933,6 +936,176 @@ function mergeRemoteDedupe(primary, secondary) {
   return out;
 }
 
+function getSanityConfig() {
+  const m = document.querySelector('meta[name="sanity-project-id"]');
+  const d = document.querySelector('meta[name="sanity-dataset"]');
+  return {
+    projectId: (m && m.content && m.content.trim()) || '',
+    dataset: (d && d.content && d.content.trim()) || 'production'
+  };
+}
+
+/** True → listings and markers come only from Sanity (`fetchSanityStudios`). */
+function sanityOnlyMode() {
+  return Boolean(getSanityConfig().projectId);
+}
+
+/** Sanity `address` object or legacy plain string → one line for cards */
+function formatSanityAddress(addr) {
+  if (addr == null || addr === '') return '';
+  if (typeof addr === 'string') return addr;
+  const line1 = addr.streetLine1 || '';
+  const line2 = addr.streetLine2 && String(addr.streetLine2).trim()
+    ? ', ' + addr.streetLine2
+    : '';
+  const cityLine = [addr.city, addr.region].filter(Boolean).join(', ');
+  const zipCountry = [addr.postalCode, addr.country].filter(Boolean).join(' ');
+  const parts = [];
+  if (line1) parts.push(line1 + line2);
+  if (cityLine) parts.push(cityLine);
+  if (zipCountry) parts.push(zipCountry);
+  return parts.join(', ') || '';
+}
+
+async function geocodeAddressString(query) {
+  const q = String(query || '').trim();
+  if (!q) return null;
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`,
+      { headers: NOMINATIM_HEADERS }
+    );
+    const data = await res.json();
+    if (!data || !data[0]) return null;
+    const la = parseFloat(data[0].lat);
+    const lo = parseFloat(data[0].lon);
+    if (!Number.isFinite(la) || !Number.isFinite(lo)) return null;
+    return { lat: la, lng: lo };
+  } catch (e) {
+    return null;
+  }
+}
+
+function sanityDocToStudio(d, idx) {
+  const pr = Math.min(3, Math.max(1, d.priceTier || 2));
+  const tags = Array.isArray(d.tags) && d.tags.length ? d.tags : ['Yoga'];
+  return {
+    id: 'sanity_' + d._id,
+    name: d.name,
+    lat: d.lat,
+    lng: d.lng,
+    rating: typeof d.rating === 'number' ? d.rating : 4.5,
+    reviews: d.reviews || 0,
+    priceLabel: ['$', '$$', '$$$'][pr - 1],
+    priceNum: pr,
+    address: formatSanityAddress(d.address),
+    tags,
+    grad: 'g' + (1 + (idx % 8)),
+    icon: pickIconFromTags(tags),
+    badge: d.featured ? (d.badge || 'Featured') : '',
+    classes: makePlaceholderClasses(),
+    _source: 'sanity'
+  };
+}
+
+/**
+ * Class / type keywords: match tags or name.
+ * Location words: only when geocoding failed (textOnly) — match address fields; otherwise map uses distance.
+ */
+function sanityRowMatchesSearch(row, studioObj, locationText, classText, textOnly) {
+  const cls = String(classText || '').trim().toLowerCase();
+  if (cls) {
+    const tags = (studioObj.tags || []).map(t => String(t).toLowerCase());
+    const nameL = String(studioObj.name || '').toLowerCase();
+    const hit = tags.some(t => t.includes(cls)) || nameL.includes(cls);
+    if (!hit) return false;
+  }
+  const loc = String(locationText || '').trim();
+  if (!loc || !textOnly) return true;
+  const hay = [
+    studioObj.name,
+    studioObj.address,
+    row.address && row.address.streetLine1,
+    row.address && row.address.streetLine2,
+    row.address && row.address.city,
+    row.address && row.address.region,
+    row.address && row.address.postalCode,
+    row.address && row.address.country,
+    (studioObj.tags || []).join(' ')
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  const tokens = loc
+    .toLowerCase()
+    .replace(/,/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+  for (const t of tokens) {
+    if (!hay.includes(t)) return false;
+  }
+  return true;
+}
+
+async function fetchSanityStudios(userLat, userLng, opts = {}) {
+  const locationText = (opts.locationText || '').trim();
+  const classText = (opts.classText || '').trim();
+  const textOnly = opts.textOnly === true;
+  const needTextFilter =
+    Boolean(classText) || (textOnly && Boolean(locationText));
+
+  const {projectId, dataset} = getSanityConfig();
+  if (!projectId) return [];
+  if (!textOnly && (!Number.isFinite(+userLat) || !Number.isFinite(+userLng))) return [];
+  const sortLat = Number.isFinite(+userLat) ? +userLat : 0;
+  const sortLng = Number.isFinite(+userLng) ? +userLng : 0;
+
+  const q = `*[_type == "studio" && (defined(address) || defined(location))] | order(_updatedAt desc) [0...500] {
+    _id, name, slug, address, tags, rating, reviews, priceTier, featured, badge,
+    "lat": location.lat, "lng": location.lng
+  }`;
+  const url = `https://${projectId}.apicdn.sanity.io/v2024-01-01/data/query/${dataset}?query=${encodeURIComponent(q)}`;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return [];
+    const j = await r.json();
+    const rows = j.result || [];
+    const near = [];
+    let prevGeocoded = false;
+    for (let idx = 0; idx < rows.length; idx++) {
+      const row = rows[idx];
+      let rowLat = row.lat;
+      let rowLng = row.lng;
+      const hasPoint =
+        rowLat != null &&
+        rowLng != null &&
+        Number.isFinite(+rowLat) &&
+        Number.isFinite(+rowLng);
+      if (!hasPoint) {
+        if (prevGeocoded) await sleep(1100);
+        prevGeocoded = true;
+        const g = await geocodeAddressString(formatSanityAddress(row.address));
+        if (!g) continue;
+        rowLat = g.lat;
+        rowLng = g.lng;
+      } else {
+        prevGeocoded = false;
+      }
+      if (!textOnly && haversine(sortLat, sortLng, rowLat, rowLng) > 150) continue;
+
+      const studioObj = sanityDocToStudio({ ...row, lat: rowLat, lng: rowLng }, near.length);
+      if (needTextFilter && !sanityRowMatchesSearch(row, studioObj, locationText, classText, textOnly)) continue;
+
+      near.push(studioObj);
+      if (near.length >= 200) break;
+    }
+    near.sort((a, b) => haversine(sortLat, sortLng, a.lat, a.lng) - haversine(sortLat, sortLng, b.lat, b.lng));
+    return near.map(ensureStudioClasses);
+  } catch (e) {
+    return [];
+  }
+}
+
 async function fetchYelpStudios(lat, lng) {
   try {
     const origin = typeof window !== 'undefined' && window.location && window.location.origin
@@ -948,19 +1121,37 @@ async function fetchYelpStudios(lat, lng) {
   }
 }
 
-async function loadStudiosNear(lat, lng, label) {
+async function loadStudiosNear(lat, lng, label, searchOpts = {}) {
   const myToken = ++studiosLoadToken;
+
+  if (sanityOnlyMode()) {
+    try {
+      const sanity = await fetchSanityStudios(lat, lng, searchOpts);
+      if (myToken !== studiosLoadToken) return;
+      studios = sanity.map(ensureStudioClasses);
+    } catch (e) {
+      if (myToken !== studiosLoadToken) return;
+      studios = [];
+    }
+    refreshDistances();
+    buildMapMarkers();
+    renderCards();
+    return;
+  }
+
   const staticNear = filterStaticByDistance(lat, lng, 320);
   let remote = [];
   try {
+    const sanity = await fetchSanityStudios(lat, lng, searchOpts);
+    if (myToken !== studiosLoadToken) return;
     const yelp = await fetchYelpStudios(lat, lng);
     if (myToken !== studiosLoadToken) return;
     let nom = [];
-    if (yelp.length < 15) {
+    if (sanity.length + yelp.length < 15) {
       nom = await fetchNominatimStudios(lat, lng, label);
     }
     if (myToken !== studiosLoadToken) return;
-    remote = mergeRemoteDedupe(yelp, nom);
+    remote = mergeRemoteDedupe(sanity, mergeRemoteDedupe(yelp, nom));
     if (!remote.length) {
       remote = await fetchNominatimStudios(lat, lng, label);
     }
@@ -1009,7 +1200,12 @@ function syncStudiosFromStatic(lat, lng, maxMiles, cap) {
   studios = filterStaticByDistance(lat, lng, maxMiles).slice(0, cap);
   refreshDistances();
 }
-syncStudiosFromStatic(state.center.lat, state.center.lng, 420, 40);
+if (sanityOnlyMode()) {
+  studios = [];
+  refreshDistances();
+} else {
+  syncStudiosFromStatic(state.center.lat, state.center.lng, 420, 40);
+}
 
 /* ══════════════════════════════════════
    MAP
@@ -1153,7 +1349,7 @@ function renderCards() {
 }
 renderCards();
 (async () => {
-  await loadStudiosNear(state.center.lat, state.center.lng, state.locationLabel);
+  await loadStudiosNear(state.center.lat, state.center.lng, state.locationLabel, {});
 })();
 
 /* ══════════════════════════════════════
@@ -1168,20 +1364,37 @@ async function doSearch() {
   if (locVal.toLowerCase()===state.locationLabel.toLowerCase() && !clsVal) {
     renderCards(); scrollToMain(); return;
   }
+  const searchOpts = { locationText: locVal, classText: clsVal };
+  if (locVal.toLowerCase()===state.locationLabel.toLowerCase() && clsVal) {
+    btn.innerHTML = '<span class="spinner"></span> Searching...';
+    btn.disabled = true;
+    try {
+      await loadStudiosNear(state.center.lat, state.center.lng, state.locationLabel, searchOpts);
+      scrollToMain();
+      toast(`Showing studios near ${state.locationLabel}`,'loc');
+    } catch (e) {}
+    btn.innerHTML='<i class="fa-solid fa-magnifying-glass"></i> Search'; btn.disabled=false;
+    return;
+  }
   btn.innerHTML = '<span class="spinner"></span> Searching...';
   btn.disabled  = true;
   try {
     const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locVal)}&limit=1`,{headers:NOMINATIM_HEADERS});
     const data = await res.json();
     if (!data.length) {
-      toast(`Could not find "${locVal}" — try a city name`,'error');
+      toast(`Could not find "${locVal}" on the map — try a shorter city or ZIP`,'error');
+      if (sanityOnlyMode()) {
+        await loadStudiosNear(state.center.lat, state.center.lng, state.locationLabel, { ...searchOpts, textOnly: true });
+        scrollToMain();
+        toast('Showing studios matching your search…', 'info');
+      }
       btn.innerHTML='<i class="fa-solid fa-magnifying-glass"></i> Search'; btn.disabled=false; return;
     }
     const {lat,lon,display_name} = data[0];
     state.center = {lat:parseFloat(lat),lng:parseFloat(lon)};
     state.locationLabel = display_name.split(',').slice(0,2).join(',').trim();
     toast('Loading studios nearby…','info');
-    await loadStudiosNear(state.center.lat, state.center.lng, state.locationLabel);
+    await loadStudiosNear(state.center.lat, state.center.lng, state.locationLabel, searchOpts);
     map.flyTo([state.center.lat,state.center.lng],12,{duration:1.2});
     scrollToMain();
     toast(`Showing studios near ${state.locationLabel}`,'loc');
@@ -1217,8 +1430,10 @@ function useMyLocation() {
       } catch (e) {}
       state.locationLabel = label;
       document.getElementById('locationInput').value = label;
+      const clsVal = document.getElementById('classInput').value.trim();
+      state.classSearch = clsVal.toLowerCase();
       toast('Loading studios near you…','info');
-      await loadStudiosNear(lat, lng, label);
+      await loadStudiosNear(lat, lng, label, { locationText: '', classText: clsVal });
       map.flyTo([lat, lng], 11, { duration: 1.2 });
       scrollToMain();
       toast('Studios updated for your area','success');

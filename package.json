@@ -7,7 +7,8 @@
     "start": "node server.js",
     "dev": "node server.js",
     "build": "node -e \"require('fs').accessSync('public/index.html'); console.log('OK: public/index.html')\"",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "cms": "npm run dev --prefix studio"
   },
   "engines": {
     "node": ">=18"
