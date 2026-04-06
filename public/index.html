@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- When set, map + listings use only your Sanity studio documents (no Yelp/Nominatim/static pool). -->
-  <meta name="sanity-project-id" content="">
+  <!-- Required for listings: public Sanity project id (see https://sanity.io/manage). -->
+  <meta name="sanity-project-id" content="t0z5ndwm">
   <meta name="sanity-dataset" content="production">
   <title>Studio Locater — Find Your Studio</title>
 
@@ -346,6 +346,11 @@
     .card-name { font-family:'Playfair Display',serif;font-size:17px;font-weight:600;color:var(--plum);margin-bottom:5px;line-height:1.3; }
     .card-addr { font-size:12px;color:var(--plum-light);margin-bottom:13px;display:flex;align-items:center;gap:4px; }
     .card-addr i { font-size:10px;color:var(--rose); }
+    .card-yelp { font-size:11px;margin:-8px 0 10px; }
+    .card-yelp a { color:var(--rose-deep);font-weight:600;text-decoration:none;border-bottom:1px solid rgba(201,126,132,.35); }
+    .card-yelp a:hover { border-bottom-color:var(--rose-deep); }
+    .map-popup .mp-yelp { margin:8px 0;font-size:11px; }
+    .map-popup .mp-yelp a { color:var(--rose-deep);font-weight:600; }
     .card-tags { display:flex;flex-wrap:wrap;gap:5px; }
     .tag { padding:3px 11px;border-radius:50px;font-size:11px;font-weight:600;letter-spacing:.02em; }
     .t-pilates    { background:var(--blush);color:var(--rose-deep); }
@@ -749,19 +754,6 @@ const NOMINATIM_HEADERS = {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-function inferTagsFromText(t) {
-  const low = String(t).toLowerCase();
-  const tags = [];
-  if (/reformer/.test(low)) { tags.push('Pilates'); tags.push('Reformer'); }
-  else if (/pilates/.test(low)) tags.push('Pilates');
-  if (/hot\s*yoga|bikram|heated/.test(low)) tags.push('Hot Yoga');
-  else if (/yoga|vinyasa|ashtanga|yin/.test(low)) tags.push('Yoga');
-  if (/barre/.test(low)) tags.push('Barre');
-  if (/meditat|mindful|breath|zen/.test(low)) tags.push('Meditation');
-  if (!tags.length) tags.push('Yoga');
-  return [...new Set(tags)].slice(0, 5);
-}
-
 function pickIconFromTags(tags) {
   if (tags.includes('Hot Yoga')) return 'fa-fire';
   if (tags.includes('Meditation')) return 'fa-brain';
@@ -782,158 +774,11 @@ function makePlaceholderClasses() {
   }));
 }
 
-function hashId(s) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = Math.imul(31, h) + s.charCodeAt(i) | 0;
-  return 'osm_' + Math.abs(h).toString(36);
-}
-
-function placeToStudio(place, idx) {
-  const name = (place.name || place.display_name.split(',')[0] || 'Studio').trim();
-  const lat = parseFloat(place.lat), lng = parseFloat(place.lon);
-  const meta = `${name} ${place.class||''} ${place.type||''}`;
-  const tags = inferTagsFromText(meta);
-  return {
-    id: hashId(place.lat + '|' + place.lon + '|' + name),
-    name: name.length > 58 ? name.slice(0, 55) + '…' : name,
-    lat, lng,
-    rating: Math.round((4.35 + Math.random() * 0.55) * 10) / 10,
-    reviews: Math.floor(40 + Math.random() * 380),
-    priceLabel: '$$',
-    priceNum: 2,
-    address: place.display_name.split(',').slice(0, 4).join(',').trim(),
-    tags,
-    grad: 'g' + (1 + (idx % 8)),
-    icon: pickIconFromTags(tags),
-    badge: idx === 0 ? 'Nearby' : '',
-    classes: makePlaceholderClasses(),
-    _source: 'osm'
-  };
-}
-
-function buildStaticUsPool() {
-  const cities = [
-    ['New York',40.75,-73.98],['Los Angeles',34.05,-118.24],['Chicago',41.88,-87.62],
-    ['Houston',29.76,-95.36],['Phoenix',33.45,-112.07],['Philadelphia',39.95,-75.16],
-    ['San Antonio',29.42,-98.49],['San Diego',32.72,-117.16],['Dallas',32.78,-96.80],
-    ['Austin',30.26,-97.74],['San Jose',37.33,-121.88],['Jacksonville',30.33,-81.65],
-    ['Fort Worth',32.75,-97.33],['Columbus',39.96,-83.00],['Charlotte',35.22,-80.84],
-    ['San Francisco',37.77,-122.42],['Indianapolis',39.76,-86.15],['Seattle',47.60,-122.33],
-    ['Denver',39.73,-104.99],['Washington',38.90,-77.03],['Boston',42.36,-71.05],
-    ['Nashville',36.16,-86.78],['Detroit',42.33,-83.04],['Portland',45.51,-122.67],
-    ['Las Vegas',36.16,-115.13],['Memphis',35.14,-90.04],['Louisville',38.25,-85.75],
-    ['Baltimore',39.29,-76.61],['Milwaukee',43.03,-87.90],['Albuquerque',35.08,-106.65],
-    ['Tucson',32.22,-110.92],['Sacramento',38.58,-121.49],['Kansas City',39.09,-94.57],
-    ['Atlanta',33.74,-84.38],['Omaha',41.25,-96.00],['Raleigh',35.77,-78.64],
-    ['Miami',25.76,-80.19],['Oakland',37.80,-122.27],['Minneapolis',44.97,-93.26],
-    ['Tulsa',36.15,-95.99],['Cleveland',41.49,-81.69],['Arlington TX',32.73,-97.12],
-    ['Tampa',27.95,-82.45],['New Orleans',29.95,-90.07],['Honolulu',21.30,-157.85],
-    ['Salt Lake City',40.76,-111.89],['St. Louis',38.62,-90.19],['Pittsburgh',40.44,-79.99],
-    ['Anchorage',61.21,-149.90],['Boise',43.61,-116.20],['Des Moines',41.59,-93.62]
-  ];
-  const prefixes = ['Flow','Bloom','Align','Zen','Luna','Pulse','Radiant','Soul','Core','River','Sky','Garden','Breathe','Petal','Glow','Aura','Balance','Rise','Still','Nourish'];
-  const pool = [];
-  let id = 1;
-  cities.forEach(([city,la,ln]) => {
-    for (let i = 0; i < 3; i++) {
-      const p = prefixes[(id + i) % prefixes.length];
-      const kind = ['Yoga','Pilates','Barre'][i % 3];
-      const meta = `${p} ${kind} ${city} pilates yoga`;
-      const tags = inferTagsFromText(meta);
-      const pr = [1,2,3][id % 3];
-      pool.push({
-        id: id++,
-        name: `${p} ${kind} — ${city}`,
-        lat: la + (Math.random() - 0.5) * 0.07,
-        lng: ln + (Math.random() - 0.5) * 0.09,
-        rating: Math.round((4.25 + Math.random() * 0.65) * 10) / 10,
-        reviews: Math.floor(25 + Math.random() * 450),
-        priceLabel: ['$','$$','$$$'][pr - 1],
-        priceNum: pr,
-        address: `${200 + Math.floor(Math.random() * 700)} ${['Oak','Maple','Pine','River'][id%4]} St, ${city}`,
-        tags,
-        grad: 'g' + (1 + (id % 8)),
-        icon: pickIconFromTags(tags),
-        badge: '',
-        classes: makePlaceholderClasses(),
-        _source: 'demo'
-      });
-    }
-  });
-  return pool;
-}
-
-const STATIC_US_POOL = buildStaticUsPool();
-
-function filterStaticByDistance(lat, lng, maxMiles) {
-  return STATIC_US_POOL
-    .map(s => ({ ...s, distance: haversine(lat, lng, s.lat, s.lng) }))
-    .filter(s => s.distance <= maxMiles)
-    .sort((a, b) => a.distance - b.distance);
-}
-
-async function fetchNominatimStudios(lat, lng, label) {
-  const queries = [
-    `yoga pilates fitness studio ${label}`,
-    `pilates barre wellness ${label}`,
-    `yoga meditation ${label}`
-  ];
-  const seen = new Set();
-  const out = [];
-  for (const q of queries) {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=18`,
-        { headers: NOMINATIM_HEADERS }
-      );
-      const data = await res.json();
-      for (const p of data) {
-        const la = parseFloat(p.lat), lo = parseFloat(p.lon);
-        const key = `${Math.round(la * 1e4)}_${Math.round(lo * 1e4)}`;
-        if (seen.has(key)) continue;
-        const d = haversine(lat, lng, la, lo);
-        if (d > 200) continue;
-        seen.add(key);
-        out.push(placeToStudio(p, out.length));
-      }
-    } catch (e) {}
-    await sleep(1100);
-  }
-  return out;
-}
-
-function mergeStudioLists(remote, staticNear, lat, lng, max = 42) {
-  const list = [...remote];
-  const taken = new Set(list.map(s => `${Math.round(s.lat * 1e4)}_${Math.round(s.lng * 1e4)}`));
-  for (const s of staticNear) {
-    if (list.length >= max) break;
-    const k = `${Math.round(s.lat * 1e4)}_${Math.round(s.lng * 1e4)}`;
-    if (taken.has(k)) continue;
-    const tooClose = list.some(o => haversine(o.lat, o.lng, s.lat, s.lng) < 1.2);
-    if (tooClose) continue;
-    taken.add(k);
-    list.push({ ...s });
-  }
-  return list;
-}
-
 let studiosLoadToken = 0;
 
 function ensureStudioClasses(s) {
   if (!s.classes || !s.classes.length) s.classes = makePlaceholderClasses();
   return s;
-}
-
-function mergeRemoteDedupe(primary, secondary) {
-  const seen = new Set();
-  const out = [];
-  for (const s of [...primary, ...secondary]) {
-    const k = `${Math.round(s.lat * 1e4)}_${Math.round(s.lng * 1e4)}`;
-    if (seen.has(k)) continue;
-    seen.add(k);
-    out.push(ensureStudioClasses({ ...s }));
-  }
-  return out;
 }
 
 function getSanityConfig() {
@@ -943,11 +788,6 @@ function getSanityConfig() {
     projectId: (m && m.content && m.content.trim()) || '',
     dataset: (d && d.content && d.content.trim()) || 'production'
   };
-}
-
-/** True → listings and markers come only from Sanity (`fetchSanityStudios`). */
-function sanityOnlyMode() {
-  return Boolean(getSanityConfig().projectId);
 }
 
 /** Sanity `address` object or legacy plain string → one line for cards */
@@ -1106,6 +946,27 @@ async function fetchSanityStudios(userLat, userLng, opts = {}) {
   }
 }
 
+function escapeAttr(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function mergeSanityAndYelp(sanity, yelp) {
+  const seen = new Set();
+  const out = [];
+  for (const s of sanity) {
+    const k = `${Math.round(s.lat * 1e4)}_${Math.round(s.lng * 1e4)}`;
+    seen.add(k);
+    out.push(s);
+  }
+  for (const s of yelp) {
+    const k = `${Math.round(s.lat * 1e4)}_${Math.round(s.lng * 1e4)}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(s);
+  }
+  return out;
+}
+
 async function fetchYelpStudios(lat, lng) {
   try {
     const origin = typeof window !== 'undefined' && window.location && window.location.origin
@@ -1123,43 +984,17 @@ async function fetchYelpStudios(lat, lng) {
 
 async function loadStudiosNear(lat, lng, label, searchOpts = {}) {
   const myToken = ++studiosLoadToken;
-
-  if (sanityOnlyMode()) {
-    try {
-      const sanity = await fetchSanityStudios(lat, lng, searchOpts);
-      if (myToken !== studiosLoadToken) return;
-      studios = sanity.map(ensureStudioClasses);
-    } catch (e) {
-      if (myToken !== studiosLoadToken) return;
-      studios = [];
-    }
-    refreshDistances();
-    buildMapMarkers();
-    renderCards();
-    return;
-  }
-
-  const staticNear = filterStaticByDistance(lat, lng, 320);
-  let remote = [];
   try {
-    const sanity = await fetchSanityStudios(lat, lng, searchOpts);
+    const [sanity, yelp] = await Promise.all([
+      fetchSanityStudios(lat, lng, searchOpts),
+      fetchYelpStudios(lat, lng)
+    ]);
     if (myToken !== studiosLoadToken) return;
-    const yelp = await fetchYelpStudios(lat, lng);
+    studios = mergeSanityAndYelp(sanity, yelp).map(ensureStudioClasses);
+  } catch (e) {
     if (myToken !== studiosLoadToken) return;
-    let nom = [];
-    if (sanity.length + yelp.length < 15) {
-      nom = await fetchNominatimStudios(lat, lng, label);
-    }
-    if (myToken !== studiosLoadToken) return;
-    remote = mergeRemoteDedupe(sanity, mergeRemoteDedupe(yelp, nom));
-    if (!remote.length) {
-      remote = await fetchNominatimStudios(lat, lng, label);
-    }
-  } catch (e) {}
-  if (myToken !== studiosLoadToken) return;
-  let merged = mergeStudioLists(remote, staticNear, lat, lng, 45);
-  if (!merged.length) merged = staticNear.slice(0, 20);
-  studios = merged.map(ensureStudioClasses);
+    studios = [];
+  }
   refreshDistances();
   buildMapMarkers();
   renderCards();
@@ -1196,16 +1031,8 @@ function refreshDistances() {
   studios.forEach(s => { s.distance = haversine(state.center.lat,state.center.lng,s.lat,s.lng); });
 }
 
-function syncStudiosFromStatic(lat, lng, maxMiles, cap) {
-  studios = filterStaticByDistance(lat, lng, maxMiles).slice(0, cap);
-  refreshDistances();
-}
-if (sanityOnlyMode()) {
-  studios = [];
-  refreshDistances();
-} else {
-  syncStudiosFromStatic(state.center.lat, state.center.lng, 420, 40);
-}
+studios = [];
+refreshDistances();
 
 /* ══════════════════════════════════════
    MAP
@@ -1241,6 +1068,7 @@ function buildMapMarkers() {
         <div class="mp-name">${s.name}</div>
         <div class="mp-row"><i class="fa-solid fa-star"></i><strong>${s.rating}</strong>&nbsp;&nbsp;${s.priceLabel}&nbsp;&nbsp;<span style="color:var(--plum-light)">${s.distance.toFixed(1)} mi</span></div>
         <div class="mp-tags">${tagsHtml}</div>
+        ${s.yelpUrl ? `<div class="mp-yelp"><a href="${escapeAttr(s.yelpUrl)}" target="_blank" rel="noopener noreferrer">View on Yelp</a></div>` : ''}
         <button class="mp-book" onclick="openBooking(${sid})">Book a Class</button>
       </div>`, {maxWidth:260});
     markerMap[s.id] = m;
@@ -1339,6 +1167,7 @@ function renderCards() {
         <div class="card-name">${s.name}</div>
         <div class="card-addr"><i class="fa-solid fa-location-dot"></i> ${s.address}</div>
         <div class="card-tags">${s.tags.map(tagHTML).join('')}</div>
+        ${s.yelpUrl ? `<div class="card-yelp"><a href="${escapeAttr(s.yelpUrl)}" target="_blank" rel="noopener noreferrer">View on Yelp</a></div>` : ''}
         <div class="card-footer">
           <div class="card-dist"><i class="fa-solid fa-person-walking"></i> ${s.distance.toFixed(1)} mi away</div>
           <button class="card-btn" onclick="openBooking(${sid})">Book a Class</button>
@@ -1383,11 +1212,9 @@ async function doSearch() {
     const data = await res.json();
     if (!data.length) {
       toast(`Could not find "${locVal}" on the map — try a shorter city or ZIP`,'error');
-      if (sanityOnlyMode()) {
-        await loadStudiosNear(state.center.lat, state.center.lng, state.locationLabel, { ...searchOpts, textOnly: true });
-        scrollToMain();
-        toast('Showing studios matching your search…', 'info');
-      }
+      await loadStudiosNear(state.center.lat, state.center.lng, state.locationLabel, { ...searchOpts, textOnly: true });
+      scrollToMain();
+      toast('Showing studios matching your search…', 'info');
       btn.innerHTML='<i class="fa-solid fa-magnifying-glass"></i> Search'; btn.disabled=false; return;
     }
     const {lat,lon,display_name} = data[0];

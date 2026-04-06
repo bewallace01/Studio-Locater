@@ -1,4 +1,5 @@
 import {defineField, defineType} from 'sanity'
+import {GeopointGeocodeInput} from '../components/GeopointGeocodeInput.jsx'
 
 export const studio = defineType({
   name: 'studio',
@@ -28,7 +29,8 @@ export const studio = defineType({
       title: 'Map location',
       type: 'geopoint',
       description:
-        'Optional. If you set a pin, we use it. If you leave it empty, the app plots the studio by geocoding the address when someone searches nearby (slower, depends on geocoding).'
+        'Optional. Use “Geocode address → map location” after filling the address, or drag the pin. If empty, the public site can still geocode the address when users search (slower).',
+      components: {input: GeopointGeocodeInput}
     }),
     defineField({
       name: 'tags',

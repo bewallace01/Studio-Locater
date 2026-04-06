@@ -1,14 +1,22 @@
 /**
- * Serves index.html and proxies Yelp Fusion (keeps API key off the browser).
- * Run: npm install && cp .env.example .env  (add YELP_API_KEY) && npm start
+ * Serves the Studio Locater front end and proxies Yelp Fusion (API key stays server-side).
+ * Live Yelp results are not written to Sanity — see docs/api-compliance.md
+ *
+ * Run: npm install && cp .env.example .env && npm start
  */
 require('dotenv').config();
 const path = require('path');
 const express = require('express');
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = Number(process.env.PORT) || 3040;
 const YELP_KEY = process.env.YELP_API_KEY;
+
+const publicDir = path.join(__dirname, 'public');
+app.get('/', (_req, res) => {
+  res.sendFile(path.join(publicDir, 'index.html'));
+});
+app.use(express.static(publicDir));
 
 function makePlaceholderClasses() {
   const names = ['Morning Flow', 'Midday Reset', 'Evening Wind-down', 'Core Fundamentals'];
@@ -77,13 +85,12 @@ function yelpBusinessToStudio(b, idx) {
     tags,
     grad: 'g' + (1 + (idx % 8)),
     icon: pickIconFromTags(tags),
-    badge: idx === 0 ? 'Yelp' : '',
+    badge: 'Yelp',
     classes: makePlaceholderClasses(),
-    _source: 'yelp'
+    _source: 'yelp',
+    yelpUrl: b.url || ''
   };
 }
-
-app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/studios', async (req, res) => {
   const lat = parseFloat(req.query.lat);
@@ -130,6 +137,12 @@ app.get('/api/studios', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Studio Locater: http://localhost:${PORT}/`);
-  if (!YELP_KEY) console.log('Tip: add YELP_API_KEY to .env for live Yelp listings.');
+  console.log(`Studio Locater (map): http://127.0.0.1:${PORT}/`);
+  console.log(`Serving from: ${publicDir}`);
+  if (PORT === 3000) {
+    console.log('If the browser shows 404, another process may be bound to :3000 — use PORT=3040 in .env');
+  }
+  if (!YELP_KEY) {
+    console.log('Tip: add YELP_API_KEY to .env for Yelp discovery (see docs/api-compliance.md).');
+  }
 });
