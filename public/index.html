@@ -112,6 +112,7 @@
       position:fixed; top:0; left:0; right:0; z-index:1000;
       padding:0 52px; height:72px;
       display:flex; align-items:center; justify-content:space-between;
+      gap:12px;
       background:rgba(253,248,248,0.92); backdrop-filter:blur(20px);
       border-bottom:1px solid var(--border); transition:box-shadow 0.3s;
     }
@@ -134,6 +135,44 @@
       box-shadow:0 4px 16px rgba(201,126,132,.3); transition:opacity .2s,transform .2s !important;
     }
     .nav-cta:hover { opacity:.9 !important; transform:translateY(-1px) !important; }
+
+    .nav-menu-btn {
+      display:none; flex-shrink:0;
+      width:44px; height:44px; border-radius:12px; border:1.5px solid var(--border);
+      background:#fff; color:var(--plum-mid); font-size:18px; cursor:pointer;
+      align-items:center; justify-content:center; transition:background .2s,border-color .2s;
+    }
+    .nav-menu-btn:hover { background:var(--blush); border-color:var(--rose); color:var(--plum); }
+
+    .nav-drawer {
+      position:fixed; inset:0; z-index:1002;
+      background:rgba(61,43,61,.45); backdrop-filter:blur(6px);
+      opacity:0; pointer-events:none; transition:opacity .25s;
+      display:flex; justify-content:flex-end;
+    }
+    .nav-drawer.open { opacity:1; pointer-events:all; }
+    .nav-drawer-panel {
+      position:relative;
+      width:min(300px, 88vw); height:100%; background:#fff;
+      box-shadow:-8px 0 40px rgba(61,43,61,.12);
+      padding:72px 24px 32px; display:flex; flex-direction:column; gap:6px;
+      transform:translateX(100%); transition:transform .28s cubic-bezier(.2,.8,.2,1);
+    }
+    .nav-drawer.open .nav-drawer-panel { transform:translateX(0); }
+    .nav-drawer-close {
+      position:absolute; top:16px; right:16px;
+      width:40px; height:40px; border-radius:50%; border:none; cursor:pointer;
+      background:var(--blush); color:var(--plum-mid); font-size:18px;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .nav-drawer a {
+      display:block; padding:14px 4px; text-decoration:none; color:var(--plum-mid);
+      font-size:16px; font-weight:500; border-bottom:1px solid var(--border);
+    }
+    .nav-drawer a.nav-drawer-cta {
+      border-bottom:none; margin-top:8px; text-align:center; border-radius:50px; padding:12px;
+      background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep)); color:#fff !important; font-weight:600;
+    }
 
     /* ═══════════════ HERO ═══════════════ */
     .hero {
@@ -254,7 +293,17 @@
     .filter-select:focus { border-color:var(--rose-deep); }
 
     /* ═══════════════ RESULTS ═══════════════ */
-    .results-layout { display:grid;grid-template-columns:1fr 420px;gap:28px;align-items:start; }
+    .results-layout {
+      display:grid; gap:28px; align-items:start;
+      grid-template-columns:1fr;
+    }
+    .results-layout.view-split { grid-template-columns:1fr 420px; }
+    .results-layout.view-split .cards-grid,
+    .results-layout.view-list .cards-grid { display:grid; }
+    .results-layout.view-split .map-wrap { display:block; }
+    .results-layout.view-list .map-wrap { display:none !important; }
+    .results-layout.view-map .cards-grid { display:none !important; }
+    .results-layout.view-map .map-wrap { display:block; }
     .cards-grid { display:grid;grid-template-columns:repeat(2,1fr);gap:20px; }
     .no-results { grid-column:span 2;text-align:center;padding:60px 20px; }
     .no-results svg { width:48px;height:48px;margin:0 auto 16px;display:block;opacity:.35; }
@@ -378,6 +427,7 @@
       border:1.5px solid rgba(232,180,184,.3);
     }
     #map { height:620px;width:100%; }
+    .results-layout.view-map #map { height:min(70vh,680px); }
     .leaflet-container { font-family:'DM Sans',sans-serif !important; }
     .leaflet-popup-content-wrapper { border-radius:18px !important;box-shadow:0 8px 32px rgba(61,43,61,.14) !important;border:1px solid var(--border) !important;padding:0 !important; }
     .leaflet-popup-content { margin:0 !important; }
@@ -490,8 +540,29 @@
 
     /* ═══════════════ RESPONSIVE ═══════════════ */
     @media(max-width:1080px) {
-      .results-layout{grid-template-columns:1fr} .map-wrap{position:relative;top:0} #map{height:360px}
+      .results-layout.view-split { grid-template-columns:1fr; }
+      .map-wrap{position:relative;top:0}
+      .results-layout.view-split #map,
+      .results-layout.view-list #map { height:min(42vh,360px); }
       nav,.main-section,footer{padding-left:24px;padding-right:24px}
+      .section-header { flex-wrap:wrap; gap:16px; align-items:flex-start; }
+    }
+    @media(max-width:768px) {
+      .section-header { flex-direction:column; align-items:stretch; padding:36px 0 20px; gap:14px; }
+      .section-title { font-size:clamp(22px,5.5vw,28px); }
+      .section-title span { font-size:12px; line-height:1.45; word-break:break-word; }
+      .view-toggle { width:100%; justify-content:stretch; }
+      .view-toggle .view-btn { flex:1; justify-content:center; padding:10px 8px; font-size:12px; }
+      .filters {
+        flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden;
+        gap:8px; padding-bottom:10px; margin-bottom:24px;
+        -webkit-overflow-scrolling:touch;
+        scrollbar-width:thin;
+      }
+      .filters::-webkit-scrollbar { height:4px; }
+      .filters::-webkit-scrollbar-thumb { background:var(--rose); border-radius:3px; }
+      .filter-pill { flex-shrink:0; padding:8px 14px; font-size:12px; }
+      .filter-select { flex-shrink:0; min-width:0; }
     }
     @media(prefers-reduced-motion:reduce) {
       .hero-blob,.search-card,.nav-logo-icon,.reveal,.scroll-hint{transition:none !important;animation:none !important}
@@ -504,14 +575,36 @@
       .cursor-layer { display:none !important; }
     }
     @media(max-width:640px) {
+      nav { height:60px; padding:0 16px; }
+      .nav-logo-text { font-size:17px; max-width:calc(100vw - 120px); overflow:hidden; text-overflow:ellipsis; }
+      .nav-links { display:none; }
+      .nav-menu-btn { display:flex; }
+      .hero { min-height:auto; padding-top:72px; padding-bottom:36px; }
+      .hero-content { padding:40px 16px 28px; }
+      .hero h1 { font-size:clamp(32px,9vw,44px); }
+      .hero-sub { font-size:15px; padding:0 4px; }
+      .hero-stats { flex-wrap:wrap; gap:16px 20px; padding-top:28px; margin-top:24px; justify-content:center; }
+      .stat { min-width:calc(50% - 12px); }
       .cards-grid{grid-template-columns:1fr}
       .studio-card.featured{grid-column:span 1;grid-template-columns:1fr}
       .studio-card.featured .card-image{height:188px}
-      .hero-stats{gap:20px} .nav-links{display:none}
+      .card-footer { flex-wrap:wrap; gap:10px; }
+      .card-btn { flex-shrink:0; }
       .search-card{flex-direction:column;border-radius:18px}
       .search-field+.search-field{border-left:none;border-top:1px solid var(--border)}
       .search-btn{width:100%;justify-content:center;border-radius:12px}
-      .modal{padding:28px 22px} .classes-grid{grid-template-columns:1fr} .form-row{grid-template-columns:1fr}
+      .modal{padding:28px 22px; width:94%; max-width:none; border-radius:22px; margin:12px; }
+      .classes-grid{grid-template-columns:1fr} .form-row{grid-template-columns:1fr}
+      .results-layout.view-map #map { height:min(58vh,480px); }
+      .toast-container { left:12px; right:12px; bottom:16px; align-items:stretch; }
+      .toast { max-width:none; }
+      .class-item { flex-wrap:wrap; gap:8px; }
+      .class-right { margin-left:auto; }
+      #main { scroll-margin-top:68px; }
+    }
+    @media(max-width:400px) {
+      .card-footer { flex-direction:column; align-items:stretch; }
+      .card-btn { width:100%; text-align:center; }
     }
   </style>
 </head>
@@ -536,7 +629,21 @@
     <li><a onclick="toast('Our blog launches next month','info')">Blog</a></li>
     <li><a class="nav-cta" onclick="openSignup()">Sign Up Free</a></li>
   </ul>
+  <button type="button" class="nav-menu-btn" id="navMenuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="navDrawer">
+    <i class="fa-solid fa-bars"></i>
+  </button>
 </nav>
+
+<div class="nav-drawer" id="navDrawer" aria-hidden="true" onclick="if(event.target===this)toggleNavDrawer(false)">
+  <div class="nav-drawer-panel" onclick="event.stopPropagation()">
+    <button type="button" class="nav-drawer-close" onclick="toggleNavDrawer(false)" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
+    <a href="#" onclick="event.preventDefault();toggleNavDrawer(false);scrollToMain()">Explore</a>
+    <a href="#" onclick="event.preventDefault();toggleNavDrawer(false);openClasses()">Classes</a>
+    <a href="#" onclick="event.preventDefault();toggleNavDrawer(false);toast('Instructor profiles coming soon','info')">Instructors</a>
+    <a href="#" onclick="event.preventDefault();toggleNavDrawer(false);toast('Our blog launches next month','info')">Blog</a>
+    <a href="#" class="nav-drawer-cta" onclick="event.preventDefault();toggleNavDrawer(false);openSignup()">Sign Up Free</a>
+  </div>
+</div>
 
 <!-- ════════════ HERO ════════════ -->
 <section class="hero">
@@ -645,7 +752,7 @@
   </div>
 
   <!-- RESULTS -->
-  <div class="results-layout" id="resultsLayout">
+  <div class="results-layout view-split" id="resultsLayout">
     <div class="cards-grid" id="cardsGrid"></div>
     <div class="map-wrap" id="mapWrap"><div id="map"></div></div>
   </div>
@@ -908,7 +1015,7 @@ async function geocodeAddressString(query) {
 
 function sanityDocToStudio(d, idx) {
   const pr = Math.min(3, Math.max(1, d.priceTier || 2));
-  const tags = Array.isArray(d.tags) && d.tags.length ? d.tags : ['Yoga'];
+  const tags = inferTagsFromNameAndCms(d.name, d.tags);
   return {
     id: 'sanity_' + d._id,
     name: d.name,
@@ -1063,9 +1170,26 @@ async function fetchYelpStudios(lat, lng) {
   }
 }
 
+/** Derive display/filter tags when CMS did not send any (Google-only rows). */
+function inferTagsFromNameAndCms(name, cmsTags) {
+  if (Array.isArray(cmsTags) && cmsTags.length) return [...new Set(cmsTags)];
+  const n = String(name || '').toLowerCase();
+  const tags = [];
+  if (/hot[\s\d&]*yoga|bikram|heated\s*yoga|warm\s*yoga|infrared|hot\s+8|hot\s+\d/.test(n)) tags.push('Hot Yoga');
+  if (/pilates|reformer|megaformer|lagree|solidcore|core\s*sculpt/.test(n)) tags.push('Pilates');
+  if (/barre/.test(n)) tags.push('Barre');
+  if (/meditat|mindful/.test(n)) tags.push('Meditation');
+  if (/infrared/.test(n) && !tags.includes('Hot Yoga')) tags.push('Infrared');
+  if (/yoga|vinyasa|hatha|ashtanga|yin|flow|kundalini|power\s*yoga|restorative/.test(n)) {
+    if (!tags.includes('Hot Yoga')) tags.push('Yoga');
+  }
+  if (!tags.length) tags.push('Yoga');
+  return [...new Set(tags)];
+}
+
 function googleMergedRowToStudio(row, idx) {
   if (row.lat == null || row.lng == null || !Number.isFinite(+row.lat) || !Number.isFinite(+row.lng)) return null;
-  const tags = Array.isArray(row.tags) && row.tags.length ? row.tags : ['Yoga'];
+  const tags = inferTagsFromNameAndCms(row.name, row.tags);
   const pr = 2;
   return {
     id: 'gplace_' + row.placeId,
@@ -1109,20 +1233,11 @@ function mergeSanityYelpGoogle(sanity, yelp, google) {
   return mergeSanityAndYelp(combined, yelp || []);
 }
 
-/** Maps filter pills to Google Places keyword (not all match a business name). */
-const FILTER_TO_PLACES_KEYWORD = {
-  Lagree: 'lagree megaformer fitness studio',
-  Solidcore: 'solidcore',
-  Niche: 'aerial trx bungee megaformer boxing rowing bootcamp fitness studio class',
-};
-
 async function loadStudiosNear(lat, lng, label, searchOpts = {}) {
   const myToken = ++studiosLoadToken;
   try {
     let kw = (searchOpts.classText || '').trim();
-    if (!kw && state.activeFilter && state.activeFilter !== 'All') {
-      kw = FILTER_TO_PLACES_KEYWORD[state.activeFilter] || state.activeFilter;
-    }
+    /* Broad keyword only: pill filters are applied client-side (see setFilter). */
     if (!kw) {
       kw =
         'yoga pilates barre fitness studio infrared hot yoga meditation lagree solidcore aerial trx';
@@ -1201,7 +1316,7 @@ function makeIcon(active=false) {
 function buildMapMarkers() {
   Object.values(markerMap).forEach(m => map.removeLayer(m));
   Object.keys(markerMap).forEach(k => delete markerMap[k]);
-  studios.forEach(s => {
+  getFiltered().forEach(s => {
     const tagsHtml = s.tags.map(t =>
       `<span class="tag ${TAG_CLASSES[t]||'t-yoga'}" style="padding:3px 9px;border-radius:50px;font-size:10.5px;font-weight:600">${t}</span>`
     ).join('');
@@ -1233,6 +1348,7 @@ function applyFilters() {
   state.priceFilter= document.getElementById('priceSelect').value;
   state.sortBy     = document.getElementById('sortSelect').value;
   renderCards();
+  buildMapMarkers();
 }
 
 function studioMatchesActiveFilter(s) {
@@ -1242,6 +1358,33 @@ function studioMatchesActiveFilter(s) {
   if (tags.includes(f)) return true;
   const n = (s.name || '').toLowerCase();
   if (n.includes(f.toLowerCase())) return true;
+  if (f === 'Yoga') {
+    return (
+      /\byoga\b|vinyasa|hatha|ashtanga|yin|kundalini|flow|namaste|restorative|iyengar|anusara|jivamukti/.test(n) ||
+      tags.some(t => /yoga|hot yoga/i.test(t))
+    );
+  }
+  if (f === 'Hot Yoga') {
+    return (
+      tags.includes('Hot Yoga') ||
+      /hot[\s\d&]*yoga|bikram|heated|infrared|warm\s*yoga|hot\s+8|hot\s+\d/.test(n)
+    );
+  }
+  if (f === 'Pilates') {
+    return (
+      tags.includes('Pilates') ||
+      /\bpilates\b|reformer|megaformer|lagree|solidcore|core\s*sculpt|merrithew/.test(n)
+    );
+  }
+  if (f === 'Barre') {
+    return tags.includes('Barre') || /barre|pure\s*barre/.test(n);
+  }
+  if (f === 'Infrared') {
+    return tags.includes('Infrared') || /infrared/.test(n);
+  }
+  if (f === 'Meditation') {
+    return tags.includes('Meditation') || /meditat|mindful|zen\s*den|sound\s*bath/.test(n);
+  }
   if (f === 'Lagree') return /lagree|megaformer|megafit|m3|s\.l\.t\.|slt\b/.test(n);
   if (f === 'Solidcore') return /solidcore|solid\s*core/.test(n);
   if (f === 'Niche') {
@@ -1352,7 +1495,7 @@ async function doSearch() {
   if (!locVal) { toast('Please enter a location','error'); return; }
   state.classSearch = clsVal.toLowerCase();
   if (locVal.toLowerCase()===state.locationLabel.toLowerCase() && !clsVal) {
-    renderCards(); scrollToMain(); return;
+    renderCards(); buildMapMarkers(); scrollToMain(); return;
   }
   const searchOpts = { locationText: locVal, classText: clsVal };
   if (locVal.toLowerCase()===state.locationLabel.toLowerCase() && clsVal) {
@@ -1394,6 +1537,7 @@ async function doSearch() {
 function onClassSearch() {
   state.classSearch = document.getElementById('classInput').value.toLowerCase();
   renderCards();
+  buildMapMarkers();
 }
 
 document.getElementById('locationInput').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
@@ -1431,29 +1575,42 @@ function useMyLocation() {
 /* ══════════════════════════════════════
    FILTERS & VIEW
 ══════════════════════════════════════ */
-async function setFilter(el) {
+function setFilter(el) {
   document.querySelectorAll('.filter-pill').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');
   state.activeFilter = el.dataset.filter;
-  await loadStudiosNear(state.center.lat, state.center.lng, state.locationLabel, {});
+  renderCards();
+  buildMapMarkers();
 }
 
-async function filterFromModal(type) {
+function filterFromModal(type) {
   closeModal('classesOverlay');
   const pill = [...document.querySelectorAll('.filter-pill')].find(p=>p.dataset.filter===type);
-  if (pill) await setFilter(pill);
+  if (pill) setFilter(pill);
   scrollToMain();
 }
 
 function setView(v) {
-  const layout=document.getElementById('resultsLayout'),mapWrap=document.getElementById('mapWrap'),grid=document.getElementById('cardsGrid');
-  ['split','list','map'].forEach(n=>document.getElementById(n+'Btn').classList.remove('active'));
+  const layout = document.getElementById('resultsLayout');
+  ['split','list','map'].forEach(n => document.getElementById(n+'Btn').classList.remove('active'));
   document.getElementById(v+'Btn').classList.add('active');
-  if(v==='split'){layout.style.gridTemplateColumns='1fr 420px';grid.style.display='grid';mapWrap.style.display='block';}
-  else if(v==='list'){layout.style.gridTemplateColumns='1fr';grid.style.display='grid';mapWrap.style.display='none';}
-  else{layout.style.gridTemplateColumns='1fr';grid.style.display='none';mapWrap.style.display='block';document.getElementById('map').style.height='680px';}
-  setTimeout(()=>map.invalidateSize(),80);
+  layout.classList.remove('view-split','view-list','view-map');
+  layout.classList.add('view-' + v);
+  setTimeout(() => map.invalidateSize(), 80);
 }
+
+function toggleNavDrawer(open) {
+  const d = document.getElementById('navDrawer');
+  const btn = document.getElementById('navMenuBtn');
+  if (!d || !btn) return;
+  const want = open === undefined ? !d.classList.contains('open') : open;
+  d.classList.toggle('open', want);
+  d.setAttribute('aria-hidden', !want);
+  btn.setAttribute('aria-expanded', want);
+  document.body.style.overflow = want ? 'hidden' : '';
+}
+
+document.getElementById('navMenuBtn')?.addEventListener('click', () => toggleNavDrawer());
 
 /* ══════════════════════════════════════
    FAVOURITES
@@ -1557,7 +1714,9 @@ function signupSuccess() {
 
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape')['bookingOverlay','signupOverlay','classesOverlay'].forEach(closeModal);
+  if(e.key!=='Escape') return;
+  toggleNavDrawer(false);
+  ['bookingOverlay','signupOverlay','classesOverlay'].forEach(closeModal);
 });
 
 /* ══════════════════════════════════════
@@ -1584,7 +1743,7 @@ function toast(msg,type='info') {
 /* ══════════════════════════════════════
    SCROLL & NAV
 ══════════════════════════════════════ */
-function scrollToMain() { document.getElementById('main').scrollIntoView({behavior:'smooth'}); }
+function scrollToMain() { toggleNavDrawer(false); document.getElementById('main').scrollIntoView({behavior:'smooth'}); }
 function scrollToHero() { window.scrollTo({top:0,behavior:'smooth'}); }
 window.addEventListener('scroll',()=>{
   document.getElementById('navbar').classList.toggle('scrolled',window.scrollY>20);
