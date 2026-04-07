@@ -6,6 +6,8 @@
   <!-- Required for listings: public Sanity project id (see https://sanity.io/manage). -->
   <meta name="sanity-project-id" content="t0z5ndwm">
   <meta name="sanity-dataset" content="production">
+  <!-- Google Places + merged Sanity (Cloudflare Worker). Set to your Worker URL; leave empty to skip. -->
+  <meta name="search-api-base" content="https://studio-locater-api.wallacebailey32.workers.dev">
   <title>Studio Locater — Find Your Studio</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -359,6 +361,10 @@
     .t-hot        { background:#FFE8E8;color:#C44040; }
     .t-barre      { background:#E6F0E6;color:#4C7A4C; }
     .t-meditation { background:#E8EAF8;color:#4C5CAE; }
+    .t-infrared   { background:#FFF0E6;color:#C45C26; }
+    .t-lagree     { background:#EDE8F5;color:#5B4B8A; }
+    .t-solidcore  { background:#E8F4F4;color:#1E6B6B; }
+    .t-niche      { background:#F5EEF8;color:#6B4C7A; }
     .card-footer { display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:14px;border-top:1px solid var(--border); }
     .card-dist { font-size:12px;color:var(--plum-light);display:flex;align-items:center;gap:4px; }
     .card-dist i { font-size:11px;color:var(--rose); }
@@ -556,7 +562,7 @@
       </div>
       <div class="search-field">
         <i class="fa-solid fa-spa"></i>
-        <input type="text" id="classInput" placeholder="Pilates, yoga, barre..." oninput="onClassSearch()">
+        <input type="text" id="classInput" placeholder="Lagree, Solidcore, aerial, TRX, yoga…" oninput="onClassSearch()">
       </div>
       <button class="search-btn" id="searchBtn" onclick="doSearch()">
         <i class="fa-solid fa-magnifying-glass"></i> Search
@@ -610,7 +616,11 @@
     <button class="filter-pill"        data-filter="Yoga"       onclick="setFilter(this)"><i class="fa-solid fa-person-praying"></i> Yoga</button>
     <button class="filter-pill"        data-filter="Pilates"    onclick="setFilter(this)"><i class="fa-solid fa-person-walking"></i> Pilates</button>
     <button class="filter-pill"        data-filter="Hot Yoga"   onclick="setFilter(this)"><i class="fa-solid fa-fire"></i> Hot Yoga</button>
+    <button class="filter-pill"        data-filter="Infrared"   onclick="setFilter(this)"><i class="fa-solid fa-sun"></i> Infrared</button>
     <button class="filter-pill"        data-filter="Barre"      onclick="setFilter(this)"><i class="fa-solid fa-music"></i> Barre</button>
+    <button class="filter-pill"        data-filter="Lagree"     onclick="setFilter(this)"><i class="fa-solid fa-grip-lines-vertical"></i> Lagree</button>
+    <button class="filter-pill"        data-filter="Solidcore"  onclick="setFilter(this)"><i class="fa-solid fa-bolt"></i> Solidcore</button>
+    <button class="filter-pill"        data-filter="Niche"      onclick="setFilter(this)"><i class="fa-solid fa-wand-magic-sparkles"></i> Niche</button>
     <button class="filter-pill"        data-filter="Meditation" onclick="setFilter(this)"><i class="fa-solid fa-brain"></i> Meditation</button>
     <select class="filter-select" id="distSelect" onchange="applyFilters()">
       <option value="any">Any Distance</option>
@@ -688,8 +698,9 @@
       <div class="form-group">
         <label class="form-label">Favourite Class Type</label>
         <select class="form-select">
-          <option>Yoga</option><option>Pilates</option><option>Hot Yoga</option>
-          <option>Barre</option><option>Reformer Pilates</option><option>Meditation</option>
+          <option>Yoga</option><option>Pilates</option><option>Hot Yoga</option><option>Infrared</option>
+          <option>Barre</option><option>Lagree</option><option>Solidcore</option><option>Niche</option>
+          <option>Reformer Pilates</option><option>Meditation</option>
         </select>
       </div>
       <button class="form-btn" onclick="signupSuccess()">Create Free Account</button>
@@ -720,6 +731,11 @@
         <div class="class-type-name">Hot Yoga</div>
         <div class="class-type-count">2 studios nearby</div>
       </div>
+      <div class="class-type-card" onclick="filterFromModal('Infrared')">
+        <div class="class-type-icon" style="background:#FFF0E6"><i class="fa-solid fa-sun" style="color:#C45C26"></i></div>
+        <div class="class-type-name">Infrared</div>
+        <div class="class-type-count">2 studios nearby</div>
+      </div>
       <div class="class-type-card" onclick="filterFromModal('Barre')">
         <div class="class-type-icon" style="background:#E6F0E6"><i class="fa-solid fa-music" style="color:#4C7A4C"></i></div>
         <div class="class-type-name">Barre</div>
@@ -728,6 +744,21 @@
       <div class="class-type-card" onclick="filterFromModal('Reformer')">
         <div class="class-type-icon" style="background:var(--gold-light)"><i class="fa-solid fa-sliders" style="color:#8B6C14"></i></div>
         <div class="class-type-name">Reformer</div>
+        <div class="class-type-count">2 studios nearby</div>
+      </div>
+      <div class="class-type-card" onclick="filterFromModal('Lagree')">
+        <div class="class-type-icon" style="background:#EDE8F5"><i class="fa-solid fa-grip-lines-vertical" style="color:#5B4B8A"></i></div>
+        <div class="class-type-name">Lagree / Megaformer</div>
+        <div class="class-type-count">2 studios nearby</div>
+      </div>
+      <div class="class-type-card" onclick="filterFromModal('Solidcore')">
+        <div class="class-type-icon" style="background:#E8F4F4"><i class="fa-solid fa-bolt" style="color:#1E6B6B"></i></div>
+        <div class="class-type-name">Solidcore</div>
+        <div class="class-type-count">2 studios nearby</div>
+      </div>
+      <div class="class-type-card" onclick="filterFromModal('Niche')">
+        <div class="class-type-icon" style="background:#F5EEF8"><i class="fa-solid fa-wand-magic-sparkles" style="color:#6B4C7A"></i></div>
+        <div class="class-type-name">Niche (aerial, TRX, boxing…)</div>
         <div class="class-type-count">2 studios nearby</div>
       </div>
       <div class="class-type-card" onclick="filterFromModal('Meditation')">
@@ -752,9 +783,66 @@ const NOMINATIM_HEADERS = {
   'User-Agent':'StudioLocater/1.0 (local demo; contact via site)'
 };
 
+function getSearchApiBase() {
+  const m = document.querySelector('meta[name="search-api-base"]');
+  return (m && m.content && m.content.trim()) || '';
+}
+
+/** Forward geocode: use Cloudflare Worker proxy on live site (Nominatim blocks many browser origins). */
+async function nominatimSearchForward(q) {
+  const trimmed = String(q || '').trim();
+  if (!trimmed) return [];
+  const base = getSearchApiBase();
+  if (base) {
+    try {
+      const r = await fetch(`${base.replace(/\/$/, '')}/api/geocode?q=${encodeURIComponent(trimmed)}`);
+      if (r.ok) {
+        const data = await r.json();
+        if (Array.isArray(data)) return data;
+      }
+    } catch (e) {}
+  }
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(trimmed)}&limit=1`,
+      { headers: NOMINATIM_HEADERS }
+    );
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+async function nominatimReverseGeocode(lat, lng) {
+  const base = getSearchApiBase();
+  if (base) {
+    try {
+      const r = await fetch(
+        `${base.replace(/\/$/, '')}/api/reverse?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`
+      );
+      if (r.ok) return await r.json();
+    } catch (e) {}
+  }
+  try {
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+      { headers: NOMINATIM_HEADERS }
+    );
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) {
+    return null;
+  }
+}
+
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 function pickIconFromTags(tags) {
+  if (tags.includes('Niche')) return 'fa-wand-magic-sparkles';
+  if (tags.includes('Solidcore')) return 'fa-bolt';
+  if (tags.includes('Lagree')) return 'fa-grip-lines-vertical';
+  if (tags.includes('Infrared')) return 'fa-sun';
   if (tags.includes('Hot Yoga')) return 'fa-fire';
   if (tags.includes('Meditation')) return 'fa-brain';
   if (tags.includes('Barre')) return 'fa-music';
@@ -810,20 +898,12 @@ function formatSanityAddress(addr) {
 async function geocodeAddressString(query) {
   const q = String(query || '').trim();
   if (!q) return null;
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`,
-      { headers: NOMINATIM_HEADERS }
-    );
-    const data = await res.json();
-    if (!data || !data[0]) return null;
-    const la = parseFloat(data[0].lat);
-    const lo = parseFloat(data[0].lon);
-    if (!Number.isFinite(la) || !Number.isFinite(lo)) return null;
-    return { lat: la, lng: lo };
-  } catch (e) {
-    return null;
-  }
+  const data = await nominatimSearchForward(q);
+  if (!data || !data[0]) return null;
+  const la = parseFloat(data[0].lat);
+  const lo = parseFloat(data[0].lon);
+  if (!Number.isFinite(la) || !Number.isFinite(lo)) return null;
+  return { lat: la, lng: lo };
 }
 
 function sanityDocToStudio(d, idx) {
@@ -832,6 +912,7 @@ function sanityDocToStudio(d, idx) {
   return {
     id: 'sanity_' + d._id,
     name: d.name,
+    placeId: d.placeId || '',
     lat: d.lat,
     lng: d.lng,
     rating: typeof d.rating === 'number' ? d.rating : 4.5,
@@ -901,7 +982,7 @@ async function fetchSanityStudios(userLat, userLng, opts = {}) {
   const sortLng = Number.isFinite(+userLng) ? +userLng : 0;
 
   const q = `*[_type == "studio" && (defined(address) || defined(location))] | order(_updatedAt desc) [0...500] {
-    _id, name, slug, address, tags, rating, reviews, priceTier, featured, badge,
+    _id, name, slug, placeId, address, tags, rating, reviews, priceTier, featured, badge,
     "lat": location.lat, "lng": location.lng
   }`;
   const url = `https://${projectId}.apicdn.sanity.io/v2024-01-01/data/query/${dataset}?query=${encodeURIComponent(q)}`;
@@ -982,15 +1063,77 @@ async function fetchYelpStudios(lat, lng) {
   }
 }
 
+function googleMergedRowToStudio(row, idx) {
+  if (row.lat == null || row.lng == null || !Number.isFinite(+row.lat) || !Number.isFinite(+row.lng)) return null;
+  const tags = Array.isArray(row.tags) && row.tags.length ? row.tags : ['Yoga'];
+  const pr = 2;
+  return {
+    id: 'gplace_' + row.placeId,
+    placeId: row.placeId || '',
+    name: row.name || 'Studio',
+    lat: +row.lat,
+    lng: +row.lng,
+    rating: row.rating != null ? row.rating : 4.5,
+    reviews: 0,
+    priceLabel: '$$',
+    priceNum: pr,
+    address: row.address || '',
+    tags,
+    grad: 'g' + (1 + (idx % 8)),
+    icon: pickIconFromTags(tags),
+    badge: row.featured ? 'Featured' : '',
+    classes: makePlaceholderClasses(),
+    _source: 'google'
+  };
+}
+
+async function fetchGooglePlacesStudios(lat, lng, keyword) {
+  const base = getSearchApiBase();
+  if (!base || !Number.isFinite(+lat) || !Number.isFinite(+lng)) return [];
+  const u = `${base.replace(/\/$/, '')}/api/search?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}&type=${encodeURIComponent(keyword || '')}`;
+  try {
+    const r = await fetch(u);
+    const j = await r.json();
+    if (!r.ok || !Array.isArray(j)) return [];
+    return j.map((row, i) => googleMergedRowToStudio(row, i)).filter(Boolean);
+  } catch (e) {
+    return [];
+  }
+}
+
+function mergeSanityYelpGoogle(sanity, yelp, google) {
+  const googleIds = new Set((google || []).map(g => g.placeId).filter(Boolean));
+  const sanityFiltered = (sanity || []).filter(s => !s.placeId || !googleIds.has(s.placeId));
+  // Do not use lat/lng dedupe between Sanity and Google — different businesses can share a building.
+  const combined = [...sanityFiltered, ...(google || [])];
+  return mergeSanityAndYelp(combined, yelp || []);
+}
+
+/** Maps filter pills to Google Places keyword (not all match a business name). */
+const FILTER_TO_PLACES_KEYWORD = {
+  Lagree: 'lagree megaformer fitness studio',
+  Solidcore: 'solidcore',
+  Niche: 'aerial trx bungee megaformer boxing rowing bootcamp fitness studio class',
+};
+
 async function loadStudiosNear(lat, lng, label, searchOpts = {}) {
   const myToken = ++studiosLoadToken;
   try {
-    const [sanity, yelp] = await Promise.all([
+    let kw = (searchOpts.classText || '').trim();
+    if (!kw && state.activeFilter && state.activeFilter !== 'All') {
+      kw = FILTER_TO_PLACES_KEYWORD[state.activeFilter] || state.activeFilter;
+    }
+    if (!kw) {
+      kw =
+        'yoga pilates barre fitness studio infrared hot yoga meditation lagree solidcore aerial trx';
+    }
+    const [sanity, yelp, google] = await Promise.all([
       fetchSanityStudios(lat, lng, searchOpts),
-      fetchYelpStudios(lat, lng)
+      fetchYelpStudios(lat, lng),
+      fetchGooglePlacesStudios(lat, lng, kw)
     ]);
     if (myToken !== studiosLoadToken) return;
-    studios = mergeSanityAndYelp(sanity, yelp).map(ensureStudioClasses);
+    studios = mergeSanityYelpGoogle(sanity, yelp, google).map(ensureStudioClasses);
   } catch (e) {
     if (myToken !== studiosLoadToken) return;
     studios = [];
@@ -1002,7 +1145,8 @@ async function loadStudiosNear(lat, lng, label, searchOpts = {}) {
 
 const TAG_CLASSES = {
   "Pilates":"t-pilates","Yoga":"t-yoga","Reformer":"t-reformer",
-  "Hot Yoga":"t-hot","Barre":"t-barre","Meditation":"t-meditation"
+  "Hot Yoga":"t-hot","Infrared":"t-infrared","Barre":"t-barre",
+  "Lagree":"t-lagree","Solidcore":"t-solidcore","Niche":"t-niche","Meditation":"t-meditation"
 };
 
 /* ══════════════════════════════════════
@@ -1091,9 +1235,26 @@ function applyFilters() {
   renderCards();
 }
 
+function studioMatchesActiveFilter(s) {
+  const f = state.activeFilter;
+  if (f === 'All') return true;
+  const tags = s.tags || [];
+  if (tags.includes(f)) return true;
+  const n = (s.name || '').toLowerCase();
+  if (n.includes(f.toLowerCase())) return true;
+  if (f === 'Lagree') return /lagree|megaformer|megafit|m3|s\.l\.t\.|slt\b/.test(n);
+  if (f === 'Solidcore') return /solidcore|solid\s*core/.test(n);
+  if (f === 'Niche') {
+    return /aerial|trx|bungee|rowing|boxing|bootcamp|kick|rumble|megaformer|lagree|solidcore|tone\s*house|kettlebell|sprint|sculpt/.test(
+      n
+    );
+  }
+  return false;
+}
+
 function getFiltered() {
   let list = [...studios];
-  if (state.activeFilter !== "All") list = list.filter(s => s.tags.includes(state.activeFilter));
+  if (state.activeFilter !== 'All') list = list.filter(studioMatchesActiveFilter);
   if (state.classSearch) {
     const q = state.classSearch;
     list = list.filter(s => s.tags.some(t=>t.toLowerCase().includes(q))||s.name.toLowerCase().includes(q));
@@ -1208,8 +1369,7 @@ async function doSearch() {
   btn.innerHTML = '<span class="spinner"></span> Searching...';
   btn.disabled  = true;
   try {
-    const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locVal)}&limit=1`,{headers:NOMINATIM_HEADERS});
-    const data = await res.json();
+    const data = await nominatimSearchForward(locVal);
     if (!data.length) {
       toast(`Could not find "${locVal}" on the map — try a shorter city or ZIP`,'error');
       await loadStudiosNear(state.center.lat, state.center.lng, state.locationLabel, { ...searchOpts, textOnly: true });
@@ -1248,9 +1408,8 @@ function useMyLocation() {
       state.center = { lat, lng };
       let label = 'Your Location';
       try {
-        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, { headers: NOMINATIM_HEADERS });
-        const j = await r.json();
-        if (j.address) {
+        const j = await nominatimReverseGeocode(lat, lng);
+        if (j && j.address) {
           const a = j.address;
           label = [a.city || a.town || a.village || a.hamlet || a.county, a.state].filter(Boolean).join(', ') || label;
         }
@@ -1272,17 +1431,17 @@ function useMyLocation() {
 /* ══════════════════════════════════════
    FILTERS & VIEW
 ══════════════════════════════════════ */
-function setFilter(el) {
+async function setFilter(el) {
   document.querySelectorAll('.filter-pill').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');
   state.activeFilter = el.dataset.filter;
-  renderCards();
+  await loadStudiosNear(state.center.lat, state.center.lng, state.locationLabel, {});
 }
 
-function filterFromModal(type) {
+async function filterFromModal(type) {
   closeModal('classesOverlay');
   const pill = [...document.querySelectorAll('.filter-pill')].find(p=>p.dataset.filter===type);
-  if (pill) setFilter(pill);
+  if (pill) await setFilter(pill);
   scrollToMain();
 }
 

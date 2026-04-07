@@ -1,5 +1,6 @@
 import {defineField, defineType} from 'sanity'
 import {GeopointGeocodeInput} from '../components/GeopointGeocodeInput.jsx'
+import {PlaceIdGoogleInput} from '../components/PlaceIdGoogleInput.jsx'
 
 export const studio = defineType({
   name: 'studio',
@@ -19,6 +20,12 @@ export const studio = defineType({
       options: {source: 'name', maxLength: 96}
     }),
     defineField({
+      name: 'description',
+      title: 'Description',
+      type: 'text',
+      rows: 3
+    }),
+    defineField({
       name: 'address',
       title: 'Address',
       type: 'address',
@@ -31,6 +38,14 @@ export const studio = defineType({
       description:
         'Optional. Use “Geocode address → map location” after filling the address, or drag the pin. If empty, the public site can still geocode the address when users search (slower).',
       components: {input: GeopointGeocodeInput}
+    }),
+    defineField({
+      name: 'placeId',
+      title: 'Google Place ID',
+      type: 'string',
+      description: 'Matches this studio to Google Places for the public search API.',
+      validation: Rule => Rule.max(256),
+      components: {input: PlaceIdGoogleInput}
     }),
     defineField({
       name: 'tags',
