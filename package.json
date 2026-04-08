@@ -8,12 +8,16 @@
     "dev": "node server.js",
     "build": "node -e \"require('fs').accessSync('public/index.html'); console.log('OK: public/index.html')\"",
     "deploy": "wrangler deploy",
-    "cms": "npm run dev --prefix studio"
+    "deploy:enrich": "npx wrangler deploy -c wrangler.enrich.toml",
+    "cms": "npm run dev --prefix studio",
+    "import:search": "node scripts/import-from-search-api.mjs",
+    "enrich:studios": "node scripts/enrich-studios-from-reviews.mjs"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
+    "@sanity/client": "^6.24.1",
     "dotenv": "^16.4.5",
     "express": "^4.21.0"
   }

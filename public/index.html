@@ -339,6 +339,49 @@
 
     .card-image { height:188px;position:relative;overflow:hidden; }
     .studio-card.featured .card-image { height:100%;min-height:240px; }
+    .card-photo {
+      position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+      z-index:0;
+    }
+    .card-image.card-image-photo .card-pattern,
+    .card-image.card-image-photo .card-icon-mark,
+    .card-image.card-image-photo .card-img-overlay,
+    .card-image.card-image-photo .card-shine,
+    .card-image.card-image-photo .card-badge,
+    .card-image.card-image-photo .card-fave { z-index:1; }
+    .card-image.card-image-photo .card-pattern { opacity:0.35; }
+    .card-image.card-image-photo .card-icon-mark { opacity:0.1; color:rgba(255,255,255,.35); }
+    .card-snippet {
+      font-size:12.5px;line-height:1.55;color:var(--plum-mid);margin:0 0 10px;
+      padding:10px 12px;background:var(--blush-light);border-radius:12px;border-left:3px solid var(--rose-deep);
+    }
+    .card-snippet i.fa-quote-left { color:var(--rose);font-size:10px;margin-right:6px;opacity:.7; }
+
+    .card-editorial { display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:0 0 10px; }
+    .level-pill {
+      font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+      padding:4px 10px;border-radius:50px;white-space:nowrap;
+    }
+    .level-beginner { background:#e8f5e9;color:#2e7d32; }
+    .level-all_levels { background:#e3f2fd;color:#1565c0; }
+    .level-mixed { background:#fff8e1;color:#f57f17; }
+    .level-intermediate { background:#fce4ec;color:#c2185b; }
+    .level-advanced { background:#efebe9;color:#5d4037; }
+    .vibe-chip {
+      font-size:11px;font-weight:600;padding:3px 10px;border-radius:50px;
+      background:linear-gradient(135deg,var(--lavender),var(--blush));color:var(--plum-mid);
+      border:1px solid rgba(179,157,219,.25);
+    }
+    .card-tips-block {
+      font-size:12.5px;line-height:1.55;color:var(--plum-mid);margin:0 0 12px;padding:11px 13px;
+      background:linear-gradient(145deg,rgba(237,229,250,.45),rgba(253,248,248,.9));
+      border-radius:14px;border:1px solid rgba(201,126,132,.18);
+    }
+    .card-tips-block .tips-label {
+      display:flex;align-items:center;gap:6px;font-weight:700;font-size:10px;text-transform:uppercase;
+      letter-spacing:.07em;color:var(--rose-deep);margin-bottom:5px;
+    }
+    .card-tips-block .tips-label i { font-size:11px;opacity:.85; }
 
     /* Card shine sweep on hover */
     .card-shine {
@@ -433,6 +476,7 @@
     .leaflet-popup-content { margin:0 !important; }
     .leaflet-popup-tip { background:#fff !important; }
     .map-popup { padding:16px 18px;min-width:210px; }
+    .mp-thumb { width:100%;height:88px;object-fit:cover;border-radius:12px;margin-bottom:10px;display:block; }
     .mp-name { font-family:'Playfair Display',serif;font-size:15px;font-weight:600;color:var(--plum);margin-bottom:5px; }
     .mp-row { display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--plum-mid);margin-bottom:9px; }
     .mp-row i { color:var(--gold);font-size:11px; }
@@ -973,6 +1017,13 @@ let studiosLoadToken = 0;
 
 function ensureStudioClasses(s) {
   if (!s.classes || !s.classes.length) s.classes = makePlaceholderClasses();
+  if (s.imageUrl == null) s.imageUrl = '';
+  if (s.reviewHighlight == null) s.reviewHighlight = '';
+  if (s.description == null) s.description = '';
+  if (typeof s.reviews !== 'number' || !Number.isFinite(s.reviews)) s.reviews = 0;
+  if (!Array.isArray(s.vibeTags)) s.vibeTags = [];
+  if (s.experienceLevel == null) s.experienceLevel = '';
+  if (s.classTips == null) s.classTips = '';
   return s;
 }
 
@@ -1016,6 +1067,7 @@ async function geocodeAddressString(query) {
 function sanityDocToStudio(d, idx) {
   const pr = Math.min(3, Math.max(1, d.priceTier || 2));
   const tags = inferTagsFromNameAndCms(d.name, d.tags);
+  const img = d.cardImageUrl && String(d.cardImageUrl).trim() ? String(d.cardImageUrl).trim() : '';
   return {
     id: 'sanity_' + d._id,
     name: d.name,
@@ -1023,7 +1075,7 @@ function sanityDocToStudio(d, idx) {
     lat: d.lat,
     lng: d.lng,
     rating: typeof d.rating === 'number' ? d.rating : 4.5,
-    reviews: d.reviews || 0,
+    reviews: typeof d.reviews === 'number' && Number.isFinite(d.reviews) ? d.reviews : 0,
     priceLabel: ['$', '$$', '$$$'][pr - 1],
     priceNum: pr,
     address: formatSanityAddress(d.address),
@@ -1032,6 +1084,12 @@ function sanityDocToStudio(d, idx) {
     icon: pickIconFromTags(tags),
     badge: d.featured ? (d.badge || 'Featured') : '',
     classes: makePlaceholderClasses(),
+    imageUrl: img,
+    description: d.description || '',
+    reviewHighlight: d.reviewHighlight || '',
+    experienceLevel: d.experienceLevel && String(d.experienceLevel).trim() ? String(d.experienceLevel).trim() : '',
+    vibeTags: Array.isArray(d.vibeTags) ? d.vibeTags.filter(Boolean) : [],
+    classTips: d.classTips && String(d.classTips).trim() ? String(d.classTips).trim() : '',
     _source: 'sanity'
   };
 }
@@ -1059,7 +1117,11 @@ function sanityRowMatchesSearch(row, studioObj, locationText, classText, textOnl
     row.address && row.address.region,
     row.address && row.address.postalCode,
     row.address && row.address.country,
-    (studioObj.tags || []).join(' ')
+    (studioObj.tags || []).join(' '),
+    (studioObj.vibeTags || []).join(' '),
+    studioObj.classTips,
+    studioObj.experienceLevel,
+    experienceLevelLabel(studioObj.experienceLevel)
   ]
     .filter(Boolean)
     .join(' ')
@@ -1089,8 +1151,10 @@ async function fetchSanityStudios(userLat, userLng, opts = {}) {
   const sortLng = Number.isFinite(+userLng) ? +userLng : 0;
 
   const q = `*[_type == "studio" && (defined(address) || defined(location))] | order(_updatedAt desc) [0...500] {
-    _id, name, slug, placeId, address, tags, rating, reviews, priceTier, featured, badge,
-    "lat": location.lat, "lng": location.lng
+    _id, name, slug, placeId, address, tags, rating, reviews, priceTier, featured, badge, description, reviewHighlight,
+    experienceLevel, vibeTags, classTips,
+    "lat": location.lat, "lng": location.lng,
+    "cardImageUrl": cardImage.asset->url
   }`;
   const url = `https://${projectId}.apicdn.sanity.io/v2024-01-01/data/query/${dataset}?query=${encodeURIComponent(q)}`;
   try {
@@ -1136,6 +1200,24 @@ async function fetchSanityStudios(userLat, userLng, opts = {}) {
 
 function escapeAttr(s) {
   return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/** Prefer highlight, then description; trim for card. */
+function cardSnippetText(s, maxLen) {
+  const max = maxLen || 140;
+  const raw = (s.reviewHighlight && String(s.reviewHighlight).trim()) ||
+    (s.description && String(s.description).trim()) ||
+    '';
+  if (!raw) return '';
+  if (raw.length <= max) return raw;
+  return raw.slice(0, max - 1).trim() + '…';
 }
 
 function mergeSanityAndYelp(sanity, yelp) {
@@ -1191,6 +1273,11 @@ function googleMergedRowToStudio(row, idx) {
   if (row.lat == null || row.lng == null || !Number.isFinite(+row.lat) || !Number.isFinite(+row.lng)) return null;
   const tags = inferTagsFromNameAndCms(row.name, row.tags);
   const pr = 2;
+  const rev =
+    typeof row.reviews === 'number' && Number.isFinite(row.reviews)
+      ? row.reviews
+      : 0;
+  const img = row.imageUrl && String(row.imageUrl).trim() ? String(row.imageUrl).trim() : '';
   return {
     id: 'gplace_' + row.placeId,
     placeId: row.placeId || '',
@@ -1198,7 +1285,7 @@ function googleMergedRowToStudio(row, idx) {
     lat: +row.lat,
     lng: +row.lng,
     rating: row.rating != null ? row.rating : 4.5,
-    reviews: 0,
+    reviews: rev,
     priceLabel: '$$',
     priceNum: pr,
     address: row.address || '',
@@ -1207,6 +1294,12 @@ function googleMergedRowToStudio(row, idx) {
     icon: pickIconFromTags(tags),
     badge: row.featured ? 'Featured' : '',
     classes: makePlaceholderClasses(),
+    imageUrl: img,
+    description: row.description || '',
+    reviewHighlight: row.reviewHighlight || '',
+    experienceLevel: row.experienceLevel && String(row.experienceLevel).trim() ? String(row.experienceLevel).trim() : '',
+    vibeTags: Array.isArray(row.vibeTags) ? row.vibeTags.filter(Boolean) : [],
+    classTips: row.classTips && String(row.classTips).trim() ? String(row.classTips).trim() : '',
     _source: 'google'
   };
 }
@@ -1263,6 +1356,32 @@ const TAG_CLASSES = {
   "Hot Yoga":"t-hot","Infrared":"t-infrared","Barre":"t-barre",
   "Lagree":"t-lagree","Solidcore":"t-solidcore","Niche":"t-niche","Meditation":"t-meditation"
 };
+
+const EXPERIENCE_LABELS = {
+  beginner: 'Beginner-friendly',
+  all_levels: 'All levels',
+  mixed: 'Mixed levels',
+  intermediate: 'Intermediate+',
+  advanced: 'Advanced'
+};
+
+function experienceLevelLabel(key) {
+  const k = String(key || '').trim();
+  return EXPERIENCE_LABELS[k] || '';
+}
+
+function experienceLevelClass(key) {
+  const safe = String(key || '').replace(/[^a-z0-9_]/gi, '');
+  return safe ? 'level-' + safe : '';
+}
+
+function classTipsSnippet(s, maxLen) {
+  const t = s.classTips && String(s.classTips).trim();
+  if (!t) return '';
+  const max = maxLen || 200;
+  if (t.length <= max) return t;
+  return t.slice(0, max - 1).trim() + '…';
+}
 
 /* ══════════════════════════════════════
    STATE
@@ -1324,8 +1443,10 @@ function buildMapMarkers() {
     const m = L.marker([s.lat,s.lng],{icon:makeIcon()})
       .addTo(map)
       .bindPopup(`<div class="map-popup">
-        <div class="mp-name">${s.name}</div>
-        <div class="mp-row"><i class="fa-solid fa-star"></i><strong>${s.rating}</strong>&nbsp;&nbsp;${s.priceLabel}&nbsp;&nbsp;<span style="color:var(--plum-light)">${s.distance.toFixed(1)} mi</span></div>
+        ${s.imageUrl ? `<img class="mp-thumb" src="${escapeAttr(s.imageUrl)}" alt="">` : ''}
+        <div class="mp-name">${escapeHtml(s.name)}</div>
+        ${(s.experienceLevel && experienceLevelLabel(s.experienceLevel)) || (s.vibeTags && s.vibeTags.length) ? `<div class="mp-vibes" style="font-size:11px;color:var(--plum-mid);margin-bottom:8px;line-height:1.4">${s.experienceLevel && experienceLevelLabel(s.experienceLevel) ? `<strong style="color:var(--plum)">${escapeHtml(experienceLevelLabel(s.experienceLevel))}</strong>` : ''}${s.experienceLevel && experienceLevelLabel(s.experienceLevel) && s.vibeTags && s.vibeTags.length ? ' · ' : ''}${(s.vibeTags || []).map(v => escapeHtml(v)).join(' · ')}</div>` : ''}
+        <div class="mp-row"><i class="fa-solid fa-star"></i><strong>${s.rating}</strong>&nbsp;·&nbsp;${s.reviews.toLocaleString()} rev&nbsp;&nbsp;${s.priceLabel}&nbsp;&nbsp;<span style="color:var(--plum-light)">${s.distance.toFixed(1)} mi</span></div>
         <div class="mp-tags">${tagsHtml}</div>
         ${s.yelpUrl ? `<div class="mp-yelp"><a href="${escapeAttr(s.yelpUrl)}" target="_blank" rel="noopener noreferrer">View on Yelp</a></div>` : ''}
         <button class="mp-book" onclick="openBooking(${sid})">Book a Class</button>
@@ -1446,11 +1567,17 @@ function renderCards() {
     const loved = state.favorites.has(s.id);
     const delay = `${i*0.07}s`;
     const sid = JSON.stringify(s.id);
+    const hasPhoto = s.imageUrl && String(s.imageUrl).trim();
+    const snippet = cardSnippetText(s);
+    const imgEl = hasPhoto
+      ? `<img class="card-photo" src="${escapeAttr(s.imageUrl)}" alt="" loading="lazy" decoding="async">`
+      : '';
     return `<div class="studio-card${isFeatured?' featured':''}"
         style="animation-delay:${delay}"
         onmouseenter="highlightMarker(${sid})"
         onmouseleave="highlightMarker(null)">
-      <div class="card-image ${s.grad}">
+      <div class="card-image ${s.grad}${hasPhoto ? ' card-image-photo' : ''}">
+        ${imgEl}
         <div class="card-pattern"></div>
         <i class="fa-solid ${s.icon} card-icon-mark"></i>
         <div class="card-img-overlay"></div>
@@ -1468,8 +1595,11 @@ function renderCards() {
           </div>
           <div class="card-price">${s.priceLabel}</div>
         </div>
-        <div class="card-name">${s.name}</div>
-        <div class="card-addr"><i class="fa-solid fa-location-dot"></i> ${s.address}</div>
+        <div class="card-name">${escapeHtml(s.name)}</div>
+        <div class="card-addr"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(s.address)}</div>
+        ${(s.experienceLevel && experienceLevelLabel(s.experienceLevel)) || (s.vibeTags && s.vibeTags.length) ? `<div class="card-editorial">${s.experienceLevel && experienceLevelLabel(s.experienceLevel) ? `<span class="level-pill ${experienceLevelClass(s.experienceLevel)}">${escapeHtml(experienceLevelLabel(s.experienceLevel))}</span>` : ''}${(s.vibeTags || []).map(v => `<span class="vibe-chip">${escapeHtml(v)}</span>`).join('')}</div>` : ''}
+        ${snippet ? `<div class="card-snippet"><i class="fa-solid fa-quote-left" aria-hidden="true"></i>${escapeHtml(snippet)}</div>` : ''}
+        ${classTipsSnippet(s) ? `<div class="card-tips-block"><span class="tips-label"><i class="fa-solid fa-lightbulb" aria-hidden="true"></i> Class tips</span>${escapeHtml(classTipsSnippet(s))}</div>` : ''}
         <div class="card-tags">${s.tags.map(tagHTML).join('')}</div>
         ${s.yelpUrl ? `<div class="card-yelp"><a href="${escapeAttr(s.yelpUrl)}" target="_blank" rel="noopener noreferrer">View on Yelp</a></div>` : ''}
         <div class="card-footer">

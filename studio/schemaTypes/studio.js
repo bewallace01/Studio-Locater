@@ -26,6 +26,52 @@ export const studio = defineType({
       rows: 3
     }),
     defineField({
+      name: 'cardImage',
+      title: 'Card image',
+      type: 'image',
+      options: {hotspot: true},
+      description: 'Hero image on search cards. If empty, the site uses a Google Places photo when available.'
+    }),
+    defineField({
+      name: 'reviewHighlight',
+      title: 'Review highlight',
+      type: 'string',
+      description: 'Short quote for cards (e.g. a favorite review line). Optional.'
+    }),
+    defineField({
+      name: 'experienceLevel',
+      title: 'Experience level',
+      type: 'string',
+      description:
+        'Who classes suit best — summarize from Google/Yelp reviews and your own visits. Sets you apart from raw listings.',
+      options: {
+        list: [
+          {title: '— Not set —', value: ''},
+          {title: 'Beginner-friendly', value: 'beginner'},
+          {title: 'All levels welcome', value: 'all_levels'},
+          {title: 'Mixed (some challenging options)', value: 'mixed'},
+          {title: 'Intermediate & up', value: 'intermediate'},
+          {title: 'Advanced-focused', value: 'advanced'}
+        ]
+      }
+    }),
+    defineField({
+      name: 'vibeTags',
+      title: 'Studio vibes',
+      type: 'array',
+      of: [{type: 'string'}],
+      options: {layout: 'tags'},
+      description: 'Atmosphere & personality (e.g. cozy, high-energy, neighborhood gem).'
+    }),
+    defineField({
+      name: 'classTips',
+      title: 'Class tips',
+      type: 'text',
+      rows: 4,
+      description:
+        'Practical notes: parking, what to bring, locker situation, culture — sourced from reviews and editors.'
+    }),
+    defineField({
       name: 'address',
       title: 'Address',
       type: 'address',

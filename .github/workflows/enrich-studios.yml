@@ -1,0 +1,56 @@
+# Runs AI enrichment (scripts/enrich-studios-from-reviews.mjs) on a schedule and on demand.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   SANITY_STUDIO_PROJECT_ID
+#   SANITY_STUDIO_DATASET   (e.g. production)
+#   SANITY_API_TOKEN        (Editor token)
+#   GOOGLE_API_KEY          (Places API)
+#   OPENAI_API_KEY
+#
+# Edit the cron below to change frequency (UTC).
+
+name: Enrich studios
+
+on:
+  schedule:
+    # Weekly: Sundays 06:00 UTC — change at https://crontab.guru
+    - cron: "0 6 * * 0"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: Max studios to process this run
+        required: false
+        default: "25"
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run AI enrichment
+        env:
+          SANITY_STUDIO_PROJECT_ID: ${{ secrets.SANITY_STUDIO_PROJECT_ID }}
+          SANITY_STUDIO_DATASET: ${{ secrets.SANITY_STUDIO_DATASET }}
+          SANITY_API_TOKEN: ${{ secrets.SANITY_API_TOKEN }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -e
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            L="${{ github.event.inputs.limit }}"
+          else
+            L=25
+          fi
+          [ -z "$L" ] && L=25
+          echo "Limit: $L"
+          npm run enrich:studios -- --limit="$L" --sleep=600

@@ -1,7 +1,7 @@
 const NOMINATIM_UA = 'StudioLocater/1.0 (geocode proxy; contact via site)';
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders() });
     }
@@ -34,7 +34,7 @@ export default {
   <div class="ep">
     <strong>GET /api/search</strong>
     <div>Query: <code>lat</code>, <code>lng</code>, optional <code>type</code> (keyword). Returns Google Places near your point, merged with Sanity when <code>placeId</code> matches.</div>
-    <div class="hint">JSON array of results.</div>
+    <div class="hint">JSON array of results. Optional server-side: set <code>SANITY_AUTO_IMPORT=1</code> and <code>SANITY_API_TOKEN</code> (secret) to upsert new Google-only rows into your dataset after each search (see wrangler.api-search.toml).</div>
   </div>
   <div class="ep">
     <strong>GET /api/geocode</strong>
@@ -66,7 +66,7 @@ export default {
         return await handleReverseProxy(url);
       }
       if (url.pathname === '/api/search') {
-        return await handleSearch(request, env);
+        return await handleSearch(request, env, ctx);
       }
       return jsonResponse({ error: 'Not Found' }, 404);
     } catch (e) {
@@ -192,7 +192,7 @@ async function fetchSanityStudios(env, placeIds) {
     throw new Error('Missing SANITY_PROJECT_ID or SANITY_DATASET');
   }
   const groq =
-    '*[_type == "studio" && placeId in $placeIds]{ placeId, tags, featured, description }';
+    '*[_type == "studio" && placeId in $placeIds]{ placeId, tags, featured, description, rating, reviews, reviewHighlight, experienceLevel, vibeTags, classTips, "cardImageUrl": cardImage.asset->url }';
   const base = `https://${projectId}.apicdn.sanity.io/v2024-01-01/data/query/${dataset}`;
   const u = new URL(base);
   u.searchParams.set('query', groq);
@@ -205,30 +205,212 @@ async function fetchSanityStudios(env, placeIds) {
   return Array.isArray(data.result) ? data.result : [];
 }
 
-function mergeResults(googleResults, sanityResults) {
+function googlePhotoUrl(photoReference, apiKey) {
+  if (!photoReference || !apiKey) return null;
+  const ref = encodeURIComponent(String(photoReference));
+  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${ref}&key=${encodeURIComponent(
+    apiKey
+  )}`;
+}
+
+function mergeResults(googleResults, sanityResults, googleApiKey) {
   const sanityById = new Map();
   for (const r of sanityResults || []) {
     if (r && r.placeId) sanityById.set(r.placeId, r);
   }
-  return googleResults.map(r => {
+  return googleResults.map((r) => {
     const sid = r.place_id;
     const s = sanityById.get(sid) || {};
     const loc = r.geometry && r.geometry.location ? r.geometry.location : {};
+    const photoRef =
+      Array.isArray(r.photos) && r.photos[0] && r.photos[0].photo_reference
+        ? r.photos[0].photo_reference
+        : null;
+    const googleImg = googlePhotoUrl(photoRef, googleApiKey);
+    const cmsImg = s.cardImageUrl && String(s.cardImageUrl).trim() ? String(s.cardImageUrl).trim() : null;
+    const reviewsGoogle =
+      typeof r.user_ratings_total === 'number' && Number.isFinite(r.user_ratings_total)
+        ? r.user_ratings_total
+        : 0;
+    const reviewsSanity = typeof s.reviews === 'number' && Number.isFinite(s.reviews) ? s.reviews : null;
+    const ratingSanity = typeof s.rating === 'number' && Number.isFinite(s.rating) ? s.rating : null;
+
     return {
       placeId: sid,
       name: r.name || '',
-      rating: r.rating != null ? r.rating : null,
+      rating: ratingSanity != null ? ratingSanity : r.rating != null ? r.rating : null,
+      reviews: reviewsSanity != null ? reviewsSanity : reviewsGoogle,
       address: r.vicinity || '',
       lat: loc.lat != null ? loc.lat : null,
       lng: loc.lng != null ? loc.lng : null,
       tags: Array.isArray(s.tags) ? s.tags : [],
       featured: typeof s.featured === 'boolean' ? s.featured : false,
-      description: s.description != null ? s.description : null
+      description: s.description != null ? s.description : null,
+      reviewHighlight: s.reviewHighlight != null && String(s.reviewHighlight).trim() ? String(s.reviewHighlight).trim() : null,
+      imageUrl: cmsImg || googleImg || null,
+      experienceLevel: s.experienceLevel && String(s.experienceLevel).trim() ? String(s.experienceLevel).trim() : null,
+      vibeTags: Array.isArray(s.vibeTags) ? s.vibeTags.filter(Boolean) : [],
+      classTips: s.classTips != null && String(s.classTips).trim() ? String(s.classTips).trim() : null
     };
   });
 }
 
-async function handleSearch(request, env) {
+function slugify(name) {
+  return String(name || 'studio')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80) || 'studio';
+}
+
+/** Same deterministic ids as `scripts/import-from-search-api.mjs` (SHA-256 prefix). */
+async function stableStudioId(placeId) {
+  const enc = new TextEncoder().encode(String(placeId));
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  const hex = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `import-${hex.slice(0, 32)}`;
+}
+
+function vicinityToAddress(vicinity) {
+  const s = String(vicinity || '').trim();
+  if (!s) {
+    return {
+      _type: 'address',
+      streetLine1: 'Address from Google',
+      city: 'Unknown',
+      region: '',
+      country: 'US'
+    };
+  }
+  const parts = s.split(',').map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 1) {
+    return {
+      _type: 'address',
+      streetLine1: parts[0],
+      city: parts[0],
+      region: '',
+      country: 'US'
+    };
+  }
+  if (parts.length === 2) {
+    return {
+      _type: 'address',
+      streetLine1: parts[0],
+      city: parts[1],
+      region: '',
+      country: 'US'
+    };
+  }
+  return {
+    _type: 'address',
+    streetLine1: parts[0],
+    city: parts[1],
+    region: parts[2],
+    country: 'US'
+  };
+}
+
+/** Studio schema uses precision(1) — Google can return 4.666. */
+function roundRating1(n) {
+  const x = typeof n === 'number' && Number.isFinite(n) ? n : 4.5;
+  return Math.round(x * 10) / 10;
+}
+
+/**
+ * Upsert Google-only rows into Sanity (optional).
+ * Requires secret SANITY_API_TOKEN and SANITY_AUTO_IMPORT=1.
+ * @returns {{ ok: boolean, detail: string }}
+ */
+async function runSanityAutoImport(env, merged, sanityResults) {
+  const auto = String(env.SANITY_AUTO_IMPORT || '').trim();
+  if (auto !== '1' && auto.toLowerCase() !== 'true') {
+    return { ok: false, detail: 'disabled' };
+  }
+
+  const token = String(env.SANITY_API_TOKEN || env.SANITY_WRITE_TOKEN || '').trim();
+  const projectId = String(env.SANITY_PROJECT_ID || '').trim();
+  const dataset = String(env.SANITY_DATASET || '').trim();
+  if (!token) {
+    return { ok: false, detail: 'missing_token' };
+  }
+  if (!projectId || !dataset) {
+    return { ok: false, detail: 'missing_project' };
+  }
+
+  const max = Math.min(
+    100,
+    Math.max(1, parseInt(String(env.SANITY_AUTO_IMPORT_MAX || '25'), 10) || 25)
+  );
+
+  const inSanity = new Set((sanityResults || []).map((r) => r.placeId).filter(Boolean));
+  const pending = merged.filter(
+    (m) =>
+      m.placeId &&
+      !inSanity.has(m.placeId) &&
+      m.lat != null &&
+      m.lng != null &&
+      Number.isFinite(+m.lat) &&
+      Number.isFinite(+m.lng)
+  );
+  if (!pending.length) {
+    return { ok: true, detail: 'no_pending', written: 0 };
+  }
+
+  const slice = pending.slice(0, max);
+  const mutations = [];
+
+  for (const row of slice) {
+    const _id = await stableStudioId(row.placeId);
+    const name = row.name || 'Studio';
+    const tags = Array.isArray(row.tags) && row.tags.length ? row.tags : ['Yoga'];
+    const slugSuffix = _id.replace(/^import-/, '').slice(0, 10);
+    const slugCurrent = `${slugify(name)}-${slugSuffix}`.slice(0, 96);
+    const doc = {
+      _id,
+      _type: 'studio',
+      name,
+      slug: { _type: 'slug', current: slugCurrent },
+      address: vicinityToAddress(row.address),
+      location: { _type: 'geopoint', lat: row.lat, lng: row.lng },
+      placeId: row.placeId,
+      tags,
+      rating: roundRating1(row.rating),
+      reviews: 0,
+      priceTier: 2,
+      featured: false
+    };
+    mutations.push({ createOrReplace: doc });
+  }
+
+  const url = `https://${projectId}.api.sanity.io/v2024-01-01/data/mutate/${encodeURIComponent(
+    dataset
+  )}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ mutations })
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    console.error('Sanity auto-import failed:', res.status, text);
+    return { ok: false, detail: `http_${res.status}`, body: text.slice(0, 500) };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { ok: true, detail: 'ok', written: mutations.length };
+  }
+  const results = parsed.results || [];
+  const written = results.filter((r) => r.operation === 'create' || r.operation === 'update').length;
+  console.log('Sanity auto-import ok:', written || mutations.length, 'documents');
+  return { ok: true, detail: 'ok', written: written || mutations.length };
+}
+
+async function handleSearch(request, env, ctx) {
   const GOOGLE_API_KEY = env.GOOGLE_API_KEY;
   const SANITY_PROJECT_ID = String(env.SANITY_PROJECT_ID || '').trim();
   const SANITY_DATASET = String(env.SANITY_DATASET || '').trim();
@@ -272,6 +454,38 @@ async function handleSearch(request, env) {
     sanityResults = [];
   }
 
-  const merged = mergeResults(googleResults, sanityResults);
-  return new Response(JSON.stringify(merged), { status: 200, headers: corsHeaders() });
+  const merged = mergeResults(googleResults, sanityResults, GOOGLE_API_KEY);
+
+  const headers = new Headers(corsHeaders());
+  const importDebug = String(env.SANITY_IMPORT_DEBUG || '').trim() === '1';
+
+  if (importDebug) {
+    headers.set('Access-Control-Expose-Headers', 'X-Sanity-Import');
+    const result = await runSanityAutoImport(env, merged, sanityResults).catch((e) => ({
+      ok: false,
+      detail: 'exception',
+      err: String(e && e.message ? e.message : e)
+    }));
+    const label =
+      result.detail === 'disabled'
+        ? 'off'
+        : result.detail === 'missing_token'
+          ? 'missing_token'
+          : result.detail === 'missing_project'
+            ? 'missing_project'
+            : result.detail === 'no_pending'
+              ? 'no_pending'
+              : result.ok
+                ? `ok:${result.written ?? 0}`
+                : `error:${result.detail}${result.body ? ':' + result.body.slice(0, 120) : ''}${result.err ? ':' + result.err : ''}`;
+    headers.set('X-Sanity-Import', label);
+  } else if (ctx && typeof ctx.waitUntil === 'function') {
+    ctx.waitUntil(
+      runSanityAutoImport(env, merged, sanityResults).catch((e) =>
+        console.error('Sanity auto-import:', e)
+      )
+    );
+  }
+
+  return new Response(JSON.stringify(merged), { status: 200, headers });
 }

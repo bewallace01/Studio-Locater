@@ -1,5 +1,6 @@
 node_modules/
 .env
+studio/.enrich-cron-secret.txt
 .DS_Store
 
 # Cloudflare

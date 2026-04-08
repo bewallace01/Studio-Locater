@@ -3,6 +3,22 @@
 # Secrets: npx wrangler secret put GOOGLE_API_KEY -c wrangler.api-search.toml
 #          npx wrangler secret put SANITY_PROJECT_ID -c wrangler.api-search.toml
 #          npx wrangler secret put SANITY_DATASET -c wrangler.api-search.toml
+#
+# Optional — auto-create Sanity studio docs for Google-only results on each /api/search:
+#   npx wrangler secret put SANITY_API_TOKEN -c wrangler.api-search.toml
+#   (Editor token from sanity.io/manage — never expose to the browser.)
+# Vars on THIS worker only (Workers → studio-locater-api → Settings → Variables):
+#   SANITY_AUTO_IMPORT = "1"          # required to enable writes
+#   SANITY_AUTO_IMPORT_MAX = "25"     # max new docs per request (default 25)
+# Temporary troubleshooting (then remove):
+#   SANITY_IMPORT_DEBUG = "1"         # response header X-Sanity-Import: ok:N | error:… | off | missing_token | no_pending
 name = "studio-locater-api"
 main = "worker-api-search.js"
 compatibility_date = "2024-01-01"
+
+# Keep in sync with Workers dashboard (or only edit here). Deploy overwrites remote vars.
+[vars]
+SANITY_AUTO_IMPORT = "1"
+SANITY_AUTO_IMPORT_MAX = "100"
+# Remove or set to "0" when you no longer need X-Sanity-Import response headers.
+SANITY_IMPORT_DEBUG = "1"
