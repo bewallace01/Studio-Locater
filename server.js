@@ -36,12 +36,41 @@ app.get('/sitemap.xml', async (req, res) => {
   }
 });
 
+app.get('/studios/id/:docId', async (req, res) => {
+  try {
+    const { fetchStudioByDocumentId, buildStudioDetailHtml, buildStudioNotFoundHtml } = await import(
+      path.join(__dirname, 'studio-detail-page.mjs')
+    );
+    const docId = String(req.params.docId || '').trim();
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host') || 'localhost';
+    const origin = `${proto}://${host}`;
+    const canonicalUrl = `${origin}${req.path.endsWith('/') ? req.path.slice(0, -1) : req.path}`;
+
+    const doc = await fetchStudioByDocumentId(docId, SANITY_PROJECT_ID, SANITY_DATASET);
+    if (!doc) {
+      res.status(404).type('html').send(buildStudioNotFoundHtml(`${origin}/`));
+      return;
+    }
+    res.type('html').send(buildStudioDetailHtml(doc, { canonicalUrl, robotsNoIndex: true }));
+  } catch (e) {
+    console.error(e);
+    res.status(500).type('html').send('Server error');
+  }
+});
+
 app.get('/studios/:slug', async (req, res) => {
   try {
     const { fetchStudioBySlug, buildStudioDetailHtml, buildStudioNotFoundHtml } = await import(
       path.join(__dirname, 'studio-detail-page.mjs')
     );
     const slug = String(req.params.slug || '').trim();
+    if (slug === 'id') {
+      const proto = req.headers['x-forwarded-proto'] || req.protocol;
+      const origin = `${proto}://${req.get('host') || 'localhost'}`;
+      res.status(404).type('html').send(buildStudioNotFoundHtml(`${origin}/`));
+      return;
+    }
     const proto = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.get('host') || 'localhost';
     const origin = `${proto}://${host}`;

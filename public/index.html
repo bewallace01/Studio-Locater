@@ -460,9 +460,12 @@
     .t-lagree     { background:#EDE8F5;color:#5B4B8A; }
     .t-solidcore  { background:#E8F4F4;color:#1E6B6B; }
     .t-niche      { background:#F5EEF8;color:#6B4C7A; }
-    .card-footer { display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:14px;border-top:1px solid var(--border); }
+    .card-footer { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);flex-wrap:wrap; }
+    .card-actions { display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto; }
     .card-dist { font-size:12px;color:var(--plum-light);display:flex;align-items:center;gap:4px; }
     .card-dist i { font-size:11px;color:var(--rose); }
+    .card-link-profile { font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;color:var(--rose-deep);text-decoration:none;border-bottom:1.5px solid rgba(201,126,132,.4);padding-bottom:1px;white-space:nowrap; }
+    .card-link-profile:hover { border-bottom-color:var(--rose-deep);color:var(--plum); }
     .card-btn { background:var(--blush);color:var(--rose-deep);border:none;padding:7px 16px;border-radius:50px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:.02em; }
     .card-btn:hover { background:var(--rose-deep);color:#fff;box-shadow:0 4px 14px rgba(201,126,132,.3); }
 
@@ -486,7 +489,9 @@
     .mp-row { display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--plum-mid);margin-bottom:9px; }
     .mp-row i { color:var(--gold);font-size:11px; }
     .mp-tags { display:flex;gap:4px;flex-wrap:wrap; }
-    .mp-book { display:block;width:100%;margin-top:10px;background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));color:#fff;border:none;padding:9px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;text-align:center; }
+    .mp-profile { display:block;width:100%;margin-top:8px;text-align:center;font-size:12px;font-weight:600;padding:8px;border-radius:10px;border:1.5px solid var(--border);color:var(--rose-deep);text-decoration:none;background:#fff; }
+    .mp-profile:hover { border-color:var(--rose-deep);background:var(--blush-light); }
+    .mp-book { display:block;width:100%;margin-top:8px;background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));color:#fff;border:none;padding:9px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;text-align:center; }
 
     /* ═══════════════ MODAL BASE ═══════════════ */
     .modal-overlay { position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;background:rgba(61,43,61,.45);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s; }
@@ -653,6 +658,8 @@
     }
     @media(max-width:400px) {
       .card-footer { flex-direction:column; align-items:stretch; }
+      .card-actions { margin-left:0; width:100%; justify-content:stretch; flex-direction:column; }
+      .card-link-profile { text-align:center; padding:10px;border-radius:50px;border:1.5px solid var(--border); }
       .card-btn { width:100%; text-align:center; }
     }
   </style>
@@ -1408,6 +1415,17 @@ function classTipsSnippet(s, maxLen) {
   return t.slice(0, max - 1).trim() + '…';
 }
 
+/** Public studio page URL — slug preferred; else Sanity document id. */
+function studioProfileHref(s) {
+  if (s.slug && String(s.slug).trim()) return '/studios/' + encodeURIComponent(String(s.slug).trim());
+  const sid = s.id && String(s.id);
+  if (sid && sid.startsWith('sanity_')) {
+    const raw = sid.slice('sanity_'.length);
+    if (raw) return '/studios/id/' + encodeURIComponent(raw);
+  }
+  return '';
+}
+
 /* ══════════════════════════════════════
    STATE
 ══════════════════════════════════════ */
@@ -1465,16 +1483,21 @@ function buildMapMarkers() {
       `<span class="tag ${TAG_CLASSES[t]||'t-yoga'}" style="padding:3px 9px;border-radius:50px;font-size:10.5px;font-weight:600">${t}</span>`
     ).join('');
     const sid = JSON.stringify(s.id);
+    const profileHref = studioProfileHref(s);
+    const nameLinked = profileHref
+      ? `<a class="mp-name-link" href="${escapeAttr(profileHref)}">${escapeHtml(s.name)}</a>`
+      : escapeHtml(s.name);
     const m = L.marker([s.lat,s.lng],{icon:makeIcon()})
       .addTo(map)
       .bindPopup(`<div class="map-popup">
         ${s.imageUrl ? `<img class="mp-thumb" src="${escapeAttr(s.imageUrl)}" alt="">` : ''}
-        <div class="mp-name">${s.slug ? `<a class="mp-name-link" href="/studios/${encodeURIComponent(s.slug)}">${escapeHtml(s.name)}</a>` : escapeHtml(s.name)}</div>
+        <div class="mp-name">${nameLinked}</div>
         ${(s.experienceLevel && experienceLevelLabel(s.experienceLevel)) || (s.vibeTags && s.vibeTags.length) ? `<div class="mp-vibes" style="font-size:11px;color:var(--plum-mid);margin-bottom:8px;line-height:1.4">${s.experienceLevel && experienceLevelLabel(s.experienceLevel) ? `<strong style="color:var(--plum)">${escapeHtml(experienceLevelLabel(s.experienceLevel))}</strong>` : ''}${s.experienceLevel && experienceLevelLabel(s.experienceLevel) && s.vibeTags && s.vibeTags.length ? ' · ' : ''}${(s.vibeTags || []).map(v => escapeHtml(v)).join(' · ')}</div>` : ''}
         <div class="mp-row"><i class="fa-solid fa-star"></i><strong>${s.rating}</strong>&nbsp;·&nbsp;${s.reviews.toLocaleString()} rev&nbsp;&nbsp;${s.priceLabel}&nbsp;&nbsp;<span style="color:var(--plum-light)">${s.distance.toFixed(1)} mi</span></div>
         <div class="mp-tags">${tagsHtml}</div>
         ${s.websiteUrl ? `<div class="mp-yelp"><a href="${escapeAttr(s.websiteUrl)}" target="_blank" rel="noopener noreferrer">Visit website</a></div>` : ''}
         ${s.yelpUrl ? `<div class="mp-yelp"><a href="${escapeAttr(s.yelpUrl)}" target="_blank" rel="noopener noreferrer">View on Yelp</a></div>` : ''}
+        ${profileHref ? `<a class="mp-profile" href="${escapeAttr(profileHref)}">Studio profile</a>` : ''}
         <button class="mp-book" onclick="openBooking(${sid})">Book a Class</button>
       </div>`, {maxWidth:260});
     markerMap[s.id] = m;
@@ -1595,6 +1618,7 @@ function renderCards() {
     const sid = JSON.stringify(s.id);
     const hasPhoto = s.imageUrl && String(s.imageUrl).trim();
     const snippet = cardSnippetText(s);
+    const profileHref = studioProfileHref(s);
     const imgEl = hasPhoto
       ? `<img class="card-photo" src="${escapeAttr(s.imageUrl)}" alt="" loading="lazy" decoding="async">`
       : '';
@@ -1631,7 +1655,10 @@ function renderCards() {
         ${s.yelpUrl ? `<div class="card-yelp"><a href="${escapeAttr(s.yelpUrl)}" target="_blank" rel="noopener noreferrer">View on Yelp</a></div>` : ''}
         <div class="card-footer">
           <div class="card-dist"><i class="fa-solid fa-person-walking"></i> ${s.distance.toFixed(1)} mi away</div>
-          <button class="card-btn" onclick="openBooking(${sid})">Book a Class</button>
+          <div class="card-actions">
+            ${profileHref ? `<a class="card-link-profile" href="${escapeAttr(profileHref)}">Studio profile</a>` : ''}
+            <button class="card-btn" onclick="openBooking(${sid})">Book a Class</button>
+          </div>
         </div>
       </div>
     </div>`;
@@ -2015,7 +2042,7 @@ function initRippleSearch() {
   });
 }
 
-const CURSOR_INTERACTIVE = 'a,button,[role="button"],label,.studio-card,.filter-pill,.view-btn,.loc-btn,.card-fave,.card-btn,.card-title-link,.mp-name-link,.scroll-hint,.day-tab,.class-type-card,.modal-close,.book-slot-btn,.form-btn,.mp-book,.footer-links a,.nav-logo,.class-item,.filter-select,.perk,.leaflet-interactive,.leaflet-popup-close-button,.toast';
+const CURSOR_INTERACTIVE = 'a,button,[role="button"],label,.studio-card,.filter-pill,.view-btn,.loc-btn,.card-fave,.card-btn,.card-title-link,.card-link-profile,.mp-name-link,.mp-profile,.scroll-hint,.day-tab,.class-type-card,.modal-close,.book-slot-btn,.form-btn,.mp-book,.footer-links a,.nav-logo,.class-item,.filter-select,.perk,.leaflet-interactive,.leaflet-popup-close-button,.toast';
 
 function cursorIsNativeField(el) {
   if (!el || !el.closest) return false;

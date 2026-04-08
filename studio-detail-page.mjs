@@ -119,10 +119,10 @@ function jsonLdLocalBusiness(studio, canonicalUrl) {
 
 /**
  * @param {object} studio - document from fetchStudioBySlug (plain fields + address object)
- * @param {{ canonicalUrl: string }} opts
+ * @param {{ canonicalUrl: string, robotsNoIndex?: boolean }} opts
  */
 export function buildStudioDetailHtml(studio, opts) {
-  const { canonicalUrl } = opts;
+  const { canonicalUrl, robotsNoIndex } = opts;
   const name = escapeHtml(studio.name || 'Studio');
   const addrLine = escapeHtml(formatSanityAddress(studio.address));
   const desc = studio.description && String(studio.description).trim();
@@ -152,6 +152,7 @@ export function buildStudioDetailHtml(studio, opts) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${name} | Studio Locater</title>
   <meta name="description" content="${metaDesc}">
+  ${robotsNoIndex ? '<meta name="robots" content="noindex, follow">' : ''}
   <link rel="canonical" href="${escapeHtml(canonicalUrl)}">
   <meta property="og:title" content="${name} | Studio Locater">
   <meta property="og:description" content="${metaDesc}">
@@ -233,20 +234,46 @@ export async function fetchStudioBySlug(slug, projectId, dataset) {
   const s = String(slug || '').trim();
   if (!s || !projectId || !dataset) return null;
 
-  const groq = `*[_type == "studio" && slug.current == $slug][0]{
-    _id, name, description, website, reviewHighlight, experienceLevel, vibeTags, classTips,
-    placeId, rating, reviews, priceTier, featured, badge, tags,
-    address,
-    "slug": slug.current,
-    "lat": location.lat,
-    "lng": location.lng,
-    "cardImageUrl": cardImage.asset->url
-  }`;
+  const groq = `*[_type == "studio" && slug.current == $slug][0]{ ${STUDIO_DETAIL_PROJECTION} }`;
 
   const base = `https://${projectId}.apicdn.sanity.io/v2024-01-01/data/query/${encodeURIComponent(dataset)}`;
   const u = new URL(base);
   u.searchParams.set('query', groq);
   u.searchParams.set('$slug', JSON.stringify(s));
+
+  const r = await fetch(u.toString());
+  if (!r.ok) return null;
+  const j = await r.json();
+  const doc = j.result;
+  if (!doc || !doc.name) return null;
+  return doc;
+}
+
+const STUDIO_DETAIL_PROJECTION = `_id, name, description, website, reviewHighlight, experienceLevel, vibeTags, classTips,
+    placeId, rating, reviews, priceTier, featured, badge, tags,
+    address,
+    "slug": slug.current,
+    "lat": location.lat,
+    "lng": location.lng,
+    "cardImageUrl": cardImage.asset->url`;
+
+/**
+ * Load a studio by Sanity document _id (for /studios/id/... when slug is not set yet).
+ * @param {string} documentId
+ * @param {string} projectId
+ * @param {string} dataset
+ * @returns {Promise<object|null>}
+ */
+export async function fetchStudioByDocumentId(documentId, projectId, dataset) {
+  const id = String(documentId || '').trim();
+  if (!id || !projectId || !dataset) return null;
+
+  const groq = `*[_type == "studio" && _id == $id][0]{ ${STUDIO_DETAIL_PROJECTION} }`;
+
+  const base = `https://${projectId}.apicdn.sanity.io/v2024-01-01/data/query/${encodeURIComponent(dataset)}`;
+  const u = new URL(base);
+  u.searchParams.set('query', groq);
+  u.searchParams.set('$id', JSON.stringify(id));
 
   const r = await fetch(u.toString());
   if (!r.ok) return null;

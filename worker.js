@@ -3,6 +3,7 @@
  */
 import {
   fetchStudioBySlug,
+  fetchStudioByDocumentId,
   buildStudioDetailHtml,
   buildStudioNotFoundHtml,
   fetchAllStudioSlugs,
@@ -13,6 +14,15 @@ function canonicalPathname(url) {
   let p = url.pathname.replace(/\/$/, '');
   if (!p) p = '/';
   return p;
+}
+
+function studioHtmlResponse(html) {
+  return new Response(html, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=300'
+    }
+  });
 }
 
 export default {
@@ -39,12 +49,47 @@ export default {
       }
     }
 
+    const projectId = env.SANITY_PROJECT_ID || 't0z5ndwm';
+    const dataset = env.SANITY_DATASET || 'production';
+    const canonicalUrl = `${url.origin}${canonicalPathname(url)}`;
+
+    const idMatch = url.pathname.match(/^\/studios\/id\/([^/]+)\/?$/);
+    if (idMatch) {
+      const docId = decodeURIComponent(idMatch[1]);
+      try {
+        const doc = await fetchStudioByDocumentId(docId, projectId, dataset);
+        if (!doc) {
+          return new Response(buildStudioNotFoundHtml(`${url.origin}/`), {
+            status: 404,
+            headers: {
+              'Content-Type': 'text/html; charset=utf-8',
+              'Cache-Control': 'public, max-age=120'
+            }
+          });
+        }
+        return studioHtmlResponse(
+          buildStudioDetailHtml(doc, { canonicalUrl, robotsNoIndex: true })
+        );
+      } catch {
+        return new Response('Server error', {
+          status: 500,
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+        });
+      }
+    }
+
     const m = url.pathname.match(/^\/studios\/([^/]+)\/?$/);
     if (m) {
       const slug = decodeURIComponent(m[1]);
-      const projectId = env.SANITY_PROJECT_ID || 't0z5ndwm';
-      const dataset = env.SANITY_DATASET || 'production';
-      const canonicalUrl = `${url.origin}${canonicalPathname(url)}`;
+      if (slug === 'id') {
+        return new Response(buildStudioNotFoundHtml(`${url.origin}/`), {
+          status: 404,
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'public, max-age=120'
+          }
+        });
+      }
       try {
         const doc = await fetchStudioBySlug(slug, projectId, dataset);
         if (!doc) {
@@ -56,13 +101,7 @@ export default {
             }
           });
         }
-        const html = buildStudioDetailHtml(doc, { canonicalUrl });
-        return new Response(html, {
-          headers: {
-            'Content-Type': 'text/html; charset=utf-8',
-            'Cache-Control': 'public, max-age=300'
-          }
-        });
+        return studioHtmlResponse(buildStudioDetailHtml(doc, { canonicalUrl }));
       } catch {
         return new Response('Server error', {
           status: 500,
