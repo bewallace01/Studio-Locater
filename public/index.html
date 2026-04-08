@@ -165,6 +165,41 @@
       white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     }
     .nav-dd-list a:hover { background:var(--blush-light); color:var(--plum); }
+    /* ── Classes mega-dropdown ── */
+    .nav-classes-panel {
+      position:absolute; top:100%; left:50%; transform:translateX(-50%);
+      padding-top:14px; min-width:520px; max-width:min(580px, 96vw);
+      opacity:0; visibility:hidden; pointer-events:none; transition:opacity .2s, visibility .2s;
+      z-index:200;
+    }
+    .nav-classes-trigger { display:inline-flex; align-items:center; gap:6px; }
+    .nav-dropdown:hover .nav-classes-panel,
+    .nav-dropdown:focus-within .nav-classes-panel { opacity:1; visibility:visible; pointer-events:auto; }
+    .nav-classes-inner {
+      background:#fff; border:1px solid var(--border); border-radius:16px;
+      box-shadow:0 16px 56px rgba(61,43,61,.16); overflow:hidden;
+    }
+    .nav-classes-head {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 20px; border-bottom:1px solid var(--border);
+    }
+    .nav-classes-head-title { font-family:'Playfair Display',serif; font-size:15px; font-weight:600; color:var(--plum); }
+    .nav-classes-head a { font-size:12px; color:var(--rose-deep); text-decoration:none; font-weight:500; }
+    .nav-classes-head a:hover { color:var(--plum); }
+    .nav-classes-grid {
+      display:grid; grid-template-columns:repeat(4,1fr); gap:2px; padding:10px;
+    }
+    .nav-class-item {
+      display:flex; flex-direction:column; align-items:center; gap:5px;
+      padding:10px 8px; border-radius:10px; text-decoration:none;
+      transition:background .15s;
+    }
+    .nav-class-item:hover { background:var(--blush-light); }
+    .nav-class-item-icon {
+      width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+      font-size:14px;
+    }
+    .nav-class-item-name { font-size:11.5px; font-weight:500; color:var(--plum); text-align:center; line-height:1.3; }
     .nav-cta {
       background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep)) !important;
       color:#fff !important; padding:10px 22px; border-radius:50px;
@@ -723,7 +758,35 @@
   </a>
   <ul class="nav-links">
     <li><a href="#main" onclick="event.preventDefault(); scrollToMain();">Explore</a></li>
-    <li><a href="#" onclick="event.preventDefault(); openClasses();">Classes</a></li>
+    <li class="nav-dropdown">
+      <a class="nav-classes-trigger" href="/classes"><span>Classes</span> <i class="fa-solid fa-chevron-down nav-dd-ico" aria-hidden="true"></i></a>
+      <div class="nav-classes-panel">
+        <div class="nav-classes-inner">
+          <div class="nav-classes-head">
+            <span class="nav-classes-head-title">Class Guide</span>
+            <a href="/classes">Browse all classes →</a>
+          </div>
+          <div class="nav-classes-grid">
+            <a class="nav-class-item" href="/classes/yoga"><div class="nav-class-item-icon" style="background:var(--lavender)"><i class="fa-solid fa-person-praying" style="color:#7B5EA7"></i></div><span class="nav-class-item-name">Yoga</span></a>
+            <a class="nav-class-item" href="/classes/hot-yoga"><div class="nav-class-item-icon" style="background:#FFE8E8"><i class="fa-solid fa-fire" style="color:#C44040"></i></div><span class="nav-class-item-name">Hot Yoga</span></a>
+            <a class="nav-class-item" href="/classes/pilates"><div class="nav-class-item-icon" style="background:var(--blush)"><i class="fa-solid fa-person-walking" style="color:var(--rose-deep)"></i></div><span class="nav-class-item-name">Pilates</span></a>
+            <a class="nav-class-item" href="/classes/reformer"><div class="nav-class-item-icon" style="background:var(--gold-light)"><i class="fa-solid fa-sliders" style="color:#8B6C14"></i></div><span class="nav-class-item-name">Reformer</span></a>
+            <a class="nav-class-item" href="/classes/barre"><div class="nav-class-item-icon" style="background:#E6F0E6"><i class="fa-solid fa-music" style="color:#4C7A4C"></i></div><span class="nav-class-item-name">Barre</span></a>
+            <a class="nav-class-item" href="/classes/lagree"><div class="nav-class-item-icon" style="background:#EDE8F5"><i class="fa-solid fa-grip-lines-vertical" style="color:#5B4B8A"></i></div><span class="nav-class-item-name">Lagree</span></a>
+            <a class="nav-class-item" href="/classes/solidcore"><div class="nav-class-item-icon" style="background:#E8F4F4"><i class="fa-solid fa-bolt" style="color:#1E6B6B"></i></div><span class="nav-class-item-name">Solidcore</span></a>
+            <a class="nav-class-item" href="/classes/infrared"><div class="nav-class-item-icon" style="background:#FFF0E6"><i class="fa-solid fa-sun" style="color:#C45C26"></i></div><span class="nav-class-item-name">Infrared</span></a>
+            <a class="nav-class-item" href="/classes/hiit"><div class="nav-class-item-icon" style="background:#FDECEC"><i class="fa-solid fa-bolt-lightning" style="color:#B03A2E"></i></div><span class="nav-class-item-name">HIIT</span></a>
+            <a class="nav-class-item" href="/classes/cycling"><div class="nav-class-item-icon" style="background:#D6EAF8"><i class="fa-solid fa-person-biking" style="color:#1A5276"></i></div><span class="nav-class-item-name">Cycling</span></a>
+            <a class="nav-class-item" href="/classes/boxing"><div class="nav-class-item-icon" style="background:#F4ECF7"><i class="fa-solid fa-hand-fist" style="color:#7D3C98"></i></div><span class="nav-class-item-name">Boxing</span></a>
+            <a class="nav-class-item" href="/classes/meditation"><div class="nav-class-item-icon" style="background:#E8EAF8"><i class="fa-solid fa-brain" style="color:#4C5CAE"></i></div><span class="nav-class-item-name">Meditation</span></a>
+            <a class="nav-class-item" href="/classes/dance"><div class="nav-class-item-icon" style="background:#FDEDEC"><i class="fa-solid fa-music" style="color:#922B21"></i></div><span class="nav-class-item-name">Dance</span></a>
+            <a class="nav-class-item" href="/classes/aerial"><div class="nav-class-item-icon" style="background:#F5EEF8"><i class="fa-solid fa-wand-magic-sparkles" style="color:#6B4C7A"></i></div><span class="nav-class-item-name">Aerial</span></a>
+            <a class="nav-class-item" href="/classes/stretch"><div class="nav-class-item-icon" style="background:#E9F7EF"><i class="fa-solid fa-person-rays" style="color:#1E8449"></i></div><span class="nav-class-item-name">Stretch</span></a>
+            <a class="nav-class-item" href="/classes/strength"><div class="nav-class-item-icon" style="background:#EAECEE"><i class="fa-solid fa-dumbbell" style="color:#2C3E50"></i></div><span class="nav-class-item-name">Strength</span></a>
+          </div>
+        </div>
+      </div>
+    </li>
     <li class="nav-dropdown">
       <a class="nav-blog-main" href="/blog"><span>Blog</span> <i class="fa-solid fa-chevron-down nav-dd-ico" aria-hidden="true"></i></a>
       <div class="nav-dropdown-panel" aria-label="Recent blog posts">
@@ -744,7 +807,25 @@
   <div class="nav-drawer-panel" onclick="event.stopPropagation()">
     <button type="button" class="nav-drawer-close" onclick="toggleNavDrawer(false)" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
     <a href="#main" onclick="event.preventDefault();toggleNavDrawer(false);scrollToMain()">Explore</a>
-    <a href="#" onclick="event.preventDefault();toggleNavDrawer(false);openClasses()">Classes</a>
+    <a href="/classes" onclick="toggleNavDrawer(false)">Classes</a>
+    <div class="nav-drawer-sublinks" style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;padding:2px 0 10px 12px;">
+      <a href="/classes/yoga" onclick="toggleNavDrawer(false)" style="font-size:12px;color:var(--plum-mid);text-decoration:none;padding:3px 0;">Yoga</a>
+      <a href="/classes/hot-yoga" onclick="toggleNavDrawer(false)" style="font-size:12px;color:var(--plum-mid);text-decoration:none;padding:3px 0;">Hot Yoga</a>
+      <a href="/classes/pilates" onclick="toggleNavDrawer(false)" style="font-size:12px;color:var(--plum-mid);text-decoration:none;padding:3px 0;">Pilates</a>
+      <a href="/classes/reformer" onclick="toggleNavDrawer(false)" style="font-size:12px;color:var(--plum-mid);text-decoration:none;padding:3px 0;">Reformer</a>
+      <a href="/classes/barre" onclick="toggleNavDrawer(false)" style="font-size:12px;color:var(--plum-mid);text-decoration:none;padding:3px 0;">Barre</a>
+      <a href="/classes/lagree" onclick="toggleNavDrawer(false)" style="font-size:12px;color:var(--plum-mid);text-decoration:none;padding:3px 0;">Lagree</a>
+      <a href="/classes/solidcore" onclick="toggleNavDrawer(false)" style="font-size:12px;color:var(--plum-mid);text-decoration:none;padding:3px 0;">Solidcore</a>
+      <a href="/classes/infrared" onclick="toggleNavDrawer(false)" style="font-size:12px;color:var(--plum-mid);text-decoration:none;padding:3px 0;">Infrared</a>
+      <a href="/classes/hiit" onclick="toggleNavDrawer(false)" style="font-size:12px;color:var(--plum-mid);text-decoration:none;padding:3px 0;">HIIT</a>
+      <a href="/classes/cycling" onclick="toggleNavDrawer(false)" style="font-size:12px;color:var(--plum-mid);text-decoration:none;padding:3px 0;">Cycling</a>
+      <a href="/classes/boxing" onclick="toggleNavDrawer(false)" style="font-size:12px;color:var(--plum-mid);text-decoration:none;padding:3px 0;">Boxing</a>
+      <a href="/classes/meditation" onclick="toggleNavDrawer(false)" style="font-size:12px;color:var(--plum-mid);text-decoration:none;padding:3px 0;">Meditation</a>
+      <a href="/classes/dance" onclick="toggleNavDrawer(false)" style="font-size:12px;color:var(--plum-mid);text-decoration:none;padding:3px 0;">Dance</a>
+      <a href="/classes/stretch" onclick="toggleNavDrawer(false)" style="font-size:12px;color:var(--plum-mid);text-decoration:none;padding:3px 0;">Stretch</a>
+      <a href="/classes/strength" onclick="toggleNavDrawer(false)" style="font-size:12px;color:var(--plum-mid);text-decoration:none;padding:3px 0;">Strength</a>
+      <a href="/classes/aerial" onclick="toggleNavDrawer(false)" style="font-size:12px;color:var(--plum-mid);text-decoration:none;padding:3px 0;">Aerial</a>
+    </div>
     <div class="nav-drawer-blog">
       <a href="/blog" onclick="toggleNavDrawer(false)">Blog</a>
       <div class="nav-drawer-sublinks" id="navDrawerBlogLinks"></div>
@@ -837,6 +918,12 @@
     <button class="filter-pill"        data-filter="Solidcore"  onclick="setFilter(this)"><i class="fa-solid fa-bolt"></i> Solidcore</button>
     <button class="filter-pill"        data-filter="Niche"      onclick="setFilter(this)"><i class="fa-solid fa-wand-magic-sparkles"></i> Niche</button>
     <button class="filter-pill"        data-filter="Meditation" onclick="setFilter(this)"><i class="fa-solid fa-brain"></i> Meditation</button>
+    <button class="filter-pill"        data-filter="HIIT"       onclick="setFilter(this)"><i class="fa-solid fa-bolt-lightning"></i> HIIT</button>
+    <button class="filter-pill"        data-filter="Cycling"    onclick="setFilter(this)"><i class="fa-solid fa-person-biking"></i> Cycling</button>
+    <button class="filter-pill"        data-filter="Boxing"     onclick="setFilter(this)"><i class="fa-solid fa-hand-fist"></i> Boxing</button>
+    <button class="filter-pill"        data-filter="Dance"      onclick="setFilter(this)"><i class="fa-solid fa-music"></i> Dance</button>
+    <button class="filter-pill"        data-filter="Stretch"    onclick="setFilter(this)"><i class="fa-solid fa-person-rays"></i> Stretch</button>
+    <button class="filter-pill"        data-filter="Strength"   onclick="setFilter(this)"><i class="fa-solid fa-dumbbell"></i> Strength</button>
     <select class="filter-select" id="distSelect" onchange="applyFilters()">
       <option value="any">Any Distance</option>
       <option value="0.5">Under 0.5 mi</option>
@@ -1189,12 +1276,7 @@ function sanityDocToStudio(d, idx) {
  */
 function sanityRowMatchesSearch(row, studioObj, locationText, classText, textOnly) {
   const cls = String(classText || '').trim().toLowerCase();
-  if (cls) {
-    const tags = (studioObj.tags || []).map(t => String(t).toLowerCase());
-    const nameL = String(studioObj.name || '').toLowerCase();
-    const hit = tags.some(t => t.includes(cls)) || nameL.includes(cls);
-    if (!hit) return false;
-  }
+  if (cls && !studioMatchesClassQuery(studioObj, classText)) return false;
   const loc = String(locationText || '').trim();
   if (!loc || !textOnly) return true;
   const hay = [
@@ -1351,20 +1433,196 @@ async function fetchYelpStudios(lat, lng) {
   }
 }
 
+/** Lowercase blob for filters / search: name, tags, description, vibes, tips, reviews. */
+function studioMatchingText(s) {
+  return [
+    s.name,
+    ...(s.tags || []),
+    s.description,
+    ...(s.vibeTags || []),
+    s.classTips,
+    s.reviewHighlight
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
+/**
+ * Lagree / Megaformer family (incl. Solidcore, SLT, Vitruvian) — used to avoid mis-tagging as Yoga
+ * and to match the Lagree filter when only description mentions the method.
+ */
+function matchesLagreeMegaformerFamily(textLower) {
+  if (!textLower) return false;
+  return /lagree|mega[\s-]?former|megaformer|megafit|vitruvian|carrie\s*dorr|sculpt\s*society|p\.?\s*volve|\bslt\b|s\.l\.t\.|slow\s*twitch|solid[\s-]?core|solidcore|\bm3\b/.test(
+    textLower
+  );
+}
+
+/**
+ * Class-type search: one query expands to sibling terms per filter “family” (pill labels).
+ * Keep clusters tight to reduce false positives; Lagree vs Pilates stays split by keywords.
+ */
+function expandClassSearchNeedles(raw) {
+  const q = String(raw || '')
+    .trim()
+    .toLowerCase();
+  if (!q) return [];
+  const needles = new Set([q]);
+  const clusters = [
+    // Lagree / Megaformer / Solidcore
+    [
+      'megaformer',
+      'mega former',
+      'lagree',
+      'lagree fitness',
+      'solidcore',
+      'solid core',
+      'solid-core',
+      'vitruvian',
+      'megafit',
+      'carrie',
+      'carrie dor',
+      'm3',
+      'p.volve',
+      'p volve',
+      'slt',
+      's.l.t',
+      'slow twitch',
+      'slt method',
+      'sculpt society'
+    ],
+    // Hot Yoga
+    ['hot yoga', 'bikram', 'bikram yoga', 'heated yoga', 'warm yoga', 'hot 8', 'hot 26', '26+2'],
+    // Yoga (general)
+    [
+      'yoga',
+      'vinyasa',
+      'hatha',
+      'ashtanga',
+      'yin yoga',
+      'yin',
+      'kundalini',
+      'restorative',
+      'power yoga',
+      'iyengar',
+      'jivamukti',
+      'anusara',
+      'namaste',
+      'flow yoga',
+      'vinyasa flow',
+      'power flow',
+      'rocket yoga'
+    ],
+    // Pilates (classical / reformer — not megaformer)
+    [
+      'pilates',
+      'reformer pilates',
+      'classical pilates',
+      'mat pilates',
+      'merrithew',
+      'club pilates',
+      'wunda',
+      'springboard',
+      'tower pilates'
+    ],
+    // Reformer as equipment (often Pilates; megaformer handled in Lagree cluster)
+    ['reformer', 'reformer class'],
+    // Barre
+    ['barre', 'pure barre', 'barre3', 'bar method', 'xtend barre', 'barre class'],
+    // Infrared
+    ['infrared', 'infrared sauna', 'infrared yoga', 'warm studio'],
+    // Meditation
+    [
+      'meditation',
+      'mindfulness',
+      'breathwork',
+      'sound bath',
+      'zen',
+      'guided meditation',
+      'mindful'
+    ],
+    // Niche (aerial, TRX, combat, conditioning — aligns with Niche filter heuristics)
+    [
+      'niche',
+      'aerial',
+      'aerial yoga',
+      'aerial silks',
+      'silks',
+      'lyra',
+      'hoop',
+      'trx',
+      'suspension',
+      'bungee',
+      'rowing',
+      'boxing',
+      'kickboxing',
+      'kick boxing',
+      'bootcamp',
+      'boot camp',
+      'hiit',
+      'circuit',
+      'rumble',
+      'tone house',
+      'kettlebell',
+      'sprint',
+      'assault bike',
+      'spin class',
+      'indoor cycling',
+      'cycling studio',
+      'battle ropes',
+      'bungee fitness'
+    ]
+  ];
+  for (const cluster of clusters) {
+    const hit = cluster.some(term => {
+      if (q === term) return true;
+      if (term.startsWith(q)) return true;
+      if (q.length < 4) return false;
+      return q.includes(term) || term.includes(q);
+    });
+    if (hit) cluster.forEach(t => needles.add(t));
+  }
+  return [...needles];
+}
+
+function studioMatchesClassQuery(s, queryText) {
+  const q = String(queryText || '').trim().toLowerCase();
+  if (!q) return true;
+  const hay = studioMatchingText(s);
+  return expandClassSearchNeedles(q).some(n => n && hay.includes(n));
+}
+
 /** Derive display/filter tags when CMS did not send any (Google-only rows). */
 function inferTagsFromNameAndCms(name, cmsTags) {
   if (Array.isArray(cmsTags) && cmsTags.length) return [...new Set(cmsTags)];
   const n = String(name || '').toLowerCase();
   const tags = [];
-  if (/hot[\s\d&]*yoga|bikram|heated\s*yoga|warm\s*yoga|infrared|hot\s+8|hot\s+\d/.test(n)) tags.push('Hot Yoga');
-  if (/pilates|reformer|megaformer|lagree|solidcore|core\s*sculpt/.test(n)) tags.push('Pilates');
-  if (/barre/.test(n)) tags.push('Barre');
-  if (/meditat|mindful/.test(n)) tags.push('Meditation');
+
+  if (/hot[\s\d&]*yoga|bikram|heated\s*yoga|warm\s*yoga|hot\s+8|hot\s+\d/.test(n)) tags.push('Hot Yoga');
   if (/infrared/.test(n) && !tags.includes('Hot Yoga')) tags.push('Infrared');
-  if (/yoga|vinyasa|hatha|ashtanga|yin|flow|kundalini|power\s*yoga|restorative/.test(n)) {
+  if (/barre|pure\s*barre/.test(n)) tags.push('Barre');
+  if (/meditat|mindful|sound\s*bath|breathwork/.test(n)) tags.push('Meditation');
+
+  const isSolidcoreBrand = /solid[\s-]?core|solidcore/.test(n);
+  const isLagreeFamily = isSolidcoreBrand || matchesLagreeMegaformerFamily(n);
+  if (isLagreeFamily) {
+    tags.push('Lagree');
+    if (isSolidcoreBrand || /\bslt\b|^slt\s|s\.l\.t\./.test(n)) tags.push('Solidcore');
+  }
+
+  if (!isLagreeFamily && /pilates|reformer|merrithew|club\s*pilates|body\s*lines/.test(n)) tags.push('Pilates');
+
+  if (
+    !isLagreeFamily &&
+    /yoga|vinyasa|hatha|ashtanga|yin|kundalini|power\s*yoga|restorative|iyengar|anusara|jivamukti|namaste/.test(n)
+  ) {
     if (!tags.includes('Hot Yoga')) tags.push('Yoga');
   }
-  if (!tags.length) tags.push('Yoga');
+
+  if (/aerial|trx|bungee|boxing|bootcamp|rumble|rowing|tone\s*house|kettlebell|spin\b|cycle\b/.test(n)) tags.push('Niche');
+
+  if (!tags.length) tags.push('Niche');
   return [...new Set(tags)];
 }
 
@@ -1634,41 +1892,69 @@ function studioMatchesActiveFilter(s) {
   if (f === 'All') return true;
   const tags = s.tags || [];
   if (tags.includes(f)) return true;
-  const n = (s.name || '').toLowerCase();
-  if (n.includes(f.toLowerCase())) return true;
+  const blob = studioMatchingText(s);
+  const fLower = f.toLowerCase();
+  /* Full-text shortcut for every filter except Yoga/Pilates — those need Lagree/megaformer rules below. */
+  if (f !== 'Yoga' && f !== 'Pilates' && blob.includes(fLower)) return true;
+
   if (f === 'Yoga') {
+    if (matchesLagreeMegaformerFamily(blob)) return false;
     return (
-      /\byoga\b|vinyasa|hatha|ashtanga|yin|kundalini|flow|namaste|restorative|iyengar|anusara|jivamukti/.test(n) ||
+      /\byoga\b|vinyasa|hatha|ashtanga|yin|kundalini|namaste|restorative|iyengar|anusara|jivamukti|power\s*yoga/.test(blob) ||
+      /\bflow\s*yoga\b|vinyasa\s*flow|power\s*flow/.test(blob) ||
       tags.some(t => /yoga|hot yoga/i.test(t))
     );
   }
   if (f === 'Hot Yoga') {
     return (
       tags.includes('Hot Yoga') ||
-      /hot[\s\d&]*yoga|bikram|heated|infrared|warm\s*yoga|hot\s+8|hot\s+\d/.test(n)
+      /hot[\s\d&]*yoga|bikram|heated\s*yoga|warm\s*yoga|hot\s+8|hot\s+\d/.test(blob)
     );
   }
   if (f === 'Pilates') {
+    if (tags.includes('Lagree') || tags.includes('Solidcore')) return tags.includes('Pilates');
     return (
       tags.includes('Pilates') ||
-      /\bpilates\b|reformer|megaformer|lagree|solidcore|core\s*sculpt|merrithew/.test(n)
+      (!matchesLagreeMegaformerFamily(blob) && /\bpilates\b|reformer|merrithew|club\s*pilates/.test(blob))
     );
   }
   if (f === 'Barre') {
-    return tags.includes('Barre') || /barre|pure\s*barre/.test(n);
+    return tags.includes('Barre') || /barre|pure\s*barre/.test(blob);
   }
   if (f === 'Infrared') {
-    return tags.includes('Infrared') || /infrared/.test(n);
+    return tags.includes('Infrared') || /infrared/.test(blob);
   }
   if (f === 'Meditation') {
-    return tags.includes('Meditation') || /meditat|mindful|zen\s*den|sound\s*bath/.test(n);
+    return tags.includes('Meditation') || /meditat|mindful|zen\s*den|sound\s*bath|breathwork/.test(blob);
   }
-  if (f === 'Lagree') return /lagree|megaformer|megafit|m3|s\.l\.t\.|slt\b/.test(n);
-  if (f === 'Solidcore') return /solidcore|solid\s*core/.test(n);
+  if (f === 'Lagree') {
+    if (tags.includes('Lagree')) return true;
+    return matchesLagreeMegaformerFamily(blob);
+  }
+  if (f === 'Solidcore') {
+    if (tags.includes('Solidcore')) return true;
+    return /solid[\s-]?core|solidcore|\bslt\b|s\.l\.t\.|slow\s*twitch/.test(blob);
+  }
   if (f === 'Niche') {
-    return /aerial|trx|bungee|rowing|boxing|bootcamp|kick|rumble|megaformer|lagree|solidcore|tone\s*house|kettlebell|sprint|sculpt/.test(
-      n
-    );
+    return /aerial|trx|bungee|rowing|boxing|bootcamp|kick|rumble|tone\s*house|kettlebell|sprint|sculpt(?!\s*society)/.test(blob);
+  }
+  if (f === 'HIIT') {
+    return tags.includes('HIIT') || /\bhiit\b|high[\s-]intensity|interval|tabata|bootcamp|orange\s*theory|barry['']?s/.test(blob);
+  }
+  if (f === 'Cycling') {
+    return tags.includes('Cycling') || /\bcycling\b|\bspin\b|spin\s*class|indoor\s*cycling|soul\s*cycle|peloton|bike\s*class|stationary\s*bike/.test(blob);
+  }
+  if (f === 'Boxing') {
+    return tags.includes('Boxing') || /\bboxing\b|kickboxing|muay[\s-]*thai|punching|title\s*boxing|rumble\s*boxing|eos\s*fitness/.test(blob);
+  }
+  if (f === 'Dance') {
+    return tags.includes('Dance') || /\bdance\b|zumba|latin\s*dance|hip[\s-]*hop\s*fit|cardio\s*dance|dance\s*cardio/.test(blob);
+  }
+  if (f === 'Stretch') {
+    return tags.includes('Stretch') || /\bstretch|mobility\s*class|flexibility\s*class|assisted\s*stretch|recovery\s*studio/.test(blob);
+  }
+  if (f === 'Strength') {
+    return tags.includes('Strength') || /\bcrossfit\b|strength\s*(?:training|class|studio)|weightlifting|olympic\s*lift|kettlebell\s*class|barbell\s*club|functional\s*fitness/.test(blob);
   }
   return false;
 }
@@ -1678,7 +1964,7 @@ function getFiltered() {
   if (state.activeFilter !== 'All') list = list.filter(studioMatchesActiveFilter);
   if (state.classSearch) {
     const q = state.classSearch;
-    list = list.filter(s => s.tags.some(t=>t.toLowerCase().includes(q))||s.name.toLowerCase().includes(q));
+    list = list.filter(s => studioMatchesClassQuery(s, q));
   }
   if (state.distMax !== "any") { const max=parseFloat(state.distMax); list=list.filter(s=>s.distance<=max); }
   if (state.priceFilter !== "any") { const p=parseInt(state.priceFilter); list=list.filter(s=>s.priceNum===p); }
@@ -1877,13 +2163,13 @@ function setFilter(el) {
 
 function filterFromModal(type) {
   closeModal('classesOverlay');
-  const filterKey =
-    type === 'Reformer'
-      ? 'Pilates'
-      : type;
+  const filterKey = type === 'Reformer' ? 'Pilates' : type;
   const pill = [...document.querySelectorAll('.filter-pill')].find(p => p.dataset.filter === filterKey);
-  if (pill) setFilter(pill);
+  if (pill) setFilter(pill); else { state.activeFilter = filterKey; renderCards(); buildMapMarkers(); }
   scrollToMain();
+  // If user hasn't set a real location yet, auto-trigger geolocation so results are actually nearby
+  const isDefaultLocation = state.locationLabel === 'New York, NY' || state.locationLabel === 'New York';
+  if (isDefaultLocation && navigator.geolocation) useMyLocation();
 }
 
 function setView(v) {
@@ -2286,6 +2572,30 @@ function initCustomCursor() {
       if (drawer) drawer.innerHTML = html;
     })
     .catch(function () {});
+})();
+
+/* ══════════════════════════════════════
+   URL PARAM: ?filter=Yoga&locate=true
+   Class guide pages link here so the
+   filter + geolocation auto-apply.
+══════════════════════════════════════ */
+(function applyUrlParams() {
+  try {
+    const p = new URLSearchParams(window.location.search);
+    const filterVal = p.get('filter');
+    const doLocate  = p.get('locate') === 'true';
+    if (filterVal) {
+      const pill = [...document.querySelectorAll('.filter-pill')]
+        .find(b => b.dataset.filter.toLowerCase() === filterVal.toLowerCase());
+      if (pill) { setFilter(pill); }
+      else { state.activeFilter = filterVal; renderCards(); buildMapMarkers(); }
+      setTimeout(scrollToMain, 200);
+    }
+    if (doLocate && navigator.geolocation) {
+      // Slight delay so the page finishes initializing first
+      setTimeout(useMyLocation, 600);
+    }
+  } catch (e) {}
 })();
 </script>
 </body>

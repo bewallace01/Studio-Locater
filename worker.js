@@ -1084,6 +1084,473 @@ async function handleBlogPost(request, env, slug) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Class Guide pages
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CLASS_GUIDE = {
+  yoga: {
+    name:'Yoga', filter:'Yoga', icon:'fa-person-praying', color:'#7B5EA7', bg:'var(--lavender)',
+    tagline:'Find your flow. Calm your mind.',
+    description:'Yoga is one of the most versatile fitness practices in the world. From gentle restorative classes to vigorous power flows, every style offers a unique blend of movement, breath, and mindfulness.',
+    benefits:['Improves flexibility and range of motion','Builds core and functional strength','Reduces stress and anxiety','Enhances mind-body connection','Supports joint health and mobility'],
+    whatToExpect:'Most classes run 60–90 minutes. Wear comfortable, stretchy clothing. Expect a blend of breathwork, flowing sequences, held poses, and a final relaxation (Savasana). Mats are usually available to borrow.',
+    difficulty:'Beginner-friendly', duration:'60–90 min', calories:'200–400 kcal',
+    gear:'Yoga mat, comfortable stretchy clothes',
+    styles:['Vinyasa','Hatha','Yin','Restorative','Ashtanga','Kundalini','Power Yoga'],
+    image:'yoga',
+  },
+  'hot-yoga': {
+    name:'Hot Yoga', filter:'Hot Yoga', icon:'fa-fire', color:'#C44040', bg:'#FFE8E8',
+    tagline:'Turn up the heat. Sweat it out.',
+    description:'Hot yoga takes place in a room heated to 80–105°F. The warmth loosens muscles for deeper stretching, amplifies calorie burn, and creates an intense detoxifying sweat session that clears both body and mind.',
+    benefits:['Deeper flexibility from the heat','Elevated calorie burn','Improved cardiovascular endurance','Detoxification through intense sweat','Mental toughness and focus'],
+    whatToExpect:'Bring a large water bottle — you\'ll need it. Wear moisture-wicking clothing. Arrive 10–15 min early to acclimate. Beginners may prefer the back row. Classes run 60–90 min.',
+    difficulty:'Intermediate', duration:'60–90 min', calories:'400–600 kcal',
+    gear:'Large water bottle, sweat towel, moisture-wicking clothes',
+    styles:['Bikram (26-pose series)','Hot Vinyasa','Hot Hatha','Hot Power Flow','Heated Yin'],
+    image:'yoga',
+  },
+  pilates: {
+    name:'Pilates', filter:'Pilates', icon:'fa-person-walking', color:'#C97E84', bg:'var(--blush)',
+    tagline:'Core strength meets graceful movement.',
+    description:'Pilates focuses on developing deep core strength, improving posture, and building long, lean muscle. Originally developed by Joseph Pilates, it\'s used by dancers, athletes, and rehab patients worldwide.',
+    benefits:['Deep core strength and stability','Improved posture and alignment','Longer, leaner muscle tone','Injury prevention and rehabilitation','Reduced back and joint pain'],
+    whatToExpect:'Mat classes need only your body weight; reformer classes use a spring-loaded machine. Classes are typically 45–60 minutes. Wear form-fitting clothes so instructors can check your alignment.',
+    difficulty:'All levels', duration:'45–60 min', calories:'175–375 kcal',
+    gear:'Grip socks (for reformer), form-fitting clothes',
+    styles:['Mat Pilates','Reformer Pilates','Clinical Pilates','Contemporary Pilates','Tower Pilates'],
+    image:'pilates',
+  },
+  reformer: {
+    name:'Reformer Pilates', filter:'Pilates', icon:'fa-sliders', color:'#8B6C14', bg:'var(--gold-light)',
+    tagline:'Spring-loaded strength and sculpt.',
+    description:'Reformer Pilates uses a sliding carriage with spring resistance to deliver a full-body workout unlike anything else. The machine allows infinite variations — making it ideal for every fitness level.',
+    benefits:['Variable resistance for any level','Full-body strength and toning','Improved coordination and balance','Joint-friendly low-impact workout','Faster visible results than mat Pilates alone'],
+    whatToExpect:'Classes are typically small (8–16 people) for personalized instruction. Grip socks are almost always required. Sessions run 50–60 minutes. Expect to feel muscles you didn\'t know existed.',
+    difficulty:'All levels', duration:'50–60 min', calories:'250–450 kcal',
+    gear:'Grip socks (usually required), form-fitting clothes',
+    styles:['Classical Reformer','Contemporary Reformer','Megaformer','Clinical Reformer','Tower Pilates'],
+    image:'pilates',
+  },
+  barre: {
+    name:'Barre', filter:'Barre', icon:'fa-music', color:'#4C7A4C', bg:'#E6F0E6',
+    tagline:'Ballet-inspired. Burn-inducing.',
+    description:'Barre fuses ballet technique with Pilates, yoga, and strength training. Small isometric movements at the ballet barre target muscles in ways traditional exercise can\'t — creating the signature "barre shake."',
+    benefits:['Sculpts legs, glutes, and core','Improves posture and balance','Builds endurance through repetition','Low-impact yet highly effective','No dance experience needed'],
+    whatToExpect:'Classes run 45–60 min. Wear grip socks and form-fitting clothes. Be prepared for small pulsing movements that create a deep, satisfying burn. Most studios have a ballet barre along the wall.',
+    difficulty:'All levels', duration:'45–60 min', calories:'250–400 kcal',
+    gear:'Grip socks, form-fitting leggings and top',
+    styles:['Pure Barre','Ballet Barre','Cardio Barre','Barre Fusion','Barre3','Pop Physique'],
+    image:'barre',
+  },
+  lagree: {
+    name:'Lagree / Megaformer', filter:'Lagree', icon:'fa-grip-lines-vertical', color:'#5B4B8A', bg:'#EDE8F5',
+    tagline:'Slow burn. Maximum results.',
+    description:'Lagree Fitness uses the proprietary Megaformer machine to deliver slow, controlled movements that simultaneously build strength, endurance, burn fat, and increase flexibility — all in one 50-minute session.',
+    benefits:['Simultaneous cardio + strength','Lean muscle without bulk','Minimal rest maximizes calorie burn','Low impact on joints','Celebrity-favorite results in 50 minutes'],
+    whatToExpect:'Classes are exactly 50 minutes of continuous movement with minimal rest. Grip socks are required. The Megaformer has springs and cables for resistance. Prepare to shake — a lot.',
+    difficulty:'Intermediate–Advanced', duration:'50 min', calories:'350–600 kcal',
+    gear:'Grip socks (required), fitted athletic wear',
+    styles:['Lagree Fitness','Megaformer Pilates','SLT (Strengthen Lengthen Tone)','Supraformer'],
+    image:'pilates',
+  },
+  solidcore: {
+    name:'Solidcore', filter:'Solidcore', icon:'fa-bolt', color:'#1E6B6B', bg:'#E8F4F4',
+    tagline:'Slow. Hard. Transformative.',
+    description:'Solidcore\'s [solidcore] method uses a proprietary machine with unstable springs to push slow-twitch muscles to complete failure in 50 intense minutes. It\'s unlike anything else in boutique fitness.',
+    benefits:['Builds slow-twitch muscle fibers for lasting tone','Lean, defined physique','Boosts resting metabolism long-term','Strengthens deep stabilizer muscles','Performance tracking every class'],
+    whatToExpect:'Classes are exactly 50 min. Coaches are hands-on and motivating. The machine is unique — each class targets specific muscle groups. Expect to be humbled your first few sessions.',
+    difficulty:'Challenging', duration:'50 min', calories:'300–500 kcal',
+    gear:'Grip socks (required), fitted clothes',
+    styles:['[solidcore] method'],
+    image:'strength',
+  },
+  infrared: {
+    name:'Infrared', filter:'Infrared', icon:'fa-sun', color:'#C45C26', bg:'#FFF0E6',
+    tagline:'Heal from the inside out.',
+    description:'Infrared studios use light energy that penetrates deep into muscle tissue — warming your body from within rather than heating the air. This enables deeper stretching, cellular detoxification, and recovery at more comfortable temperatures than traditional hot yoga.',
+    benefits:['Deep tissue warmth (not just hot air)','Detoxification at the cellular level','Reduced inflammation and chronic pain','Improved circulation','Comfortable temp (~90°F vs. 105°F hot yoga)'],
+    whatToExpect:'Expect a warm but not overwhelming studio (85–95°F). The warmth is gentler than traditional hot yoga. You\'ll still sweat, but without the oppressive heat. Great intro to heated classes.',
+    difficulty:'All levels', duration:'45–75 min', calories:'200–400 kcal',
+    gear:'Moisture-wicking clothes, water bottle, small towel',
+    styles:['Infrared Yoga','Infrared Pilates','Infrared Barre','Infrared Sauna Classes','Infrared Hot Yoga'],
+    image:'wellness',
+  },
+  meditation: {
+    name:'Meditation', filter:'Meditation', icon:'fa-brain', color:'#4C5CAE', bg:'#E8EAF8',
+    tagline:'Train your mind like you train your body.',
+    description:'Meditation studios offer guided sessions to reduce stress, improve focus, and cultivate inner calm. From breathwork to sound baths, these spaces provide dedicated time to quiet the noise of daily life.',
+    benefits:['Reduces stress and anxiety measurably','Improves focus and mental clarity','Better sleep quality','Emotional regulation and resilience','Lower blood pressure'],
+    whatToExpect:'Sessions vary from 20–60 minutes. You\'ll sit or lie comfortably while an instructor guides your awareness. Some studios use singing bowls, guided visualization, or breathwork techniques.',
+    difficulty:'Everyone', duration:'20–60 min', calories:'40–80 kcal',
+    gear:'Comfortable clothes (bring layers)',
+    styles:['Guided Meditation','Mindfulness MBSR','Sound Bath','Breathwork','Transcendental Meditation','Body Scan'],
+    image:'meditation',
+  },
+  hiit: {
+    name:'HIIT', filter:'HIIT', icon:'fa-bolt-lightning', color:'#B03A2E', bg:'#FDECEC',
+    tagline:'Work hard. Rest less. See results.',
+    description:'High-Intensity Interval Training alternates short bursts of maximum effort with brief recovery periods. HIIT is scientifically proven to burn more calories in less time and boost metabolism for hours after class.',
+    benefits:['Burns up to 30% more calories than steady cardio','Continues burning calories post-workout (EPOC effect)','Builds cardiovascular fitness fast','Preserves lean muscle while burning fat','Effective in 20–45 minutes'],
+    whatToExpect:'Classes range from 20–45 min of alternating all-out effort and short recovery. Exercises include burpees, sprints, jump squats, kettlebell swings, and more. Push to your limit — then recover.',
+    difficulty:'Intermediate–Advanced', duration:'20–45 min', calories:'400–700 kcal',
+    gear:'Supportive cross-training shoes, water bottle, towel',
+    styles:['Tabata','Circuit Training','OrangeTheory-style','Barry\'s Bootcamp-style','CrossFit WODs'],
+    image:'hiit',
+  },
+  cycling: {
+    name:'Cycling / Spin', filter:'Cycling', icon:'fa-person-biking', color:'#1A5276', bg:'#D6EAF8',
+    tagline:'Ride to the rhythm. Feel the burn.',
+    description:'Indoor cycling classes use stationary bikes to deliver an exhilarating cardio workout. From dark rooms with pumping music (SoulCycle-style) to gamified platforms, there\'s a spin class for every personality.',
+    benefits:['Low-impact, joint-friendly cardio','Burns 400–600 calories per class','Builds leg strength and endurance','Easy to scale for all fitness levels','Energizing group atmosphere'],
+    whatToExpect:'Classes are 45–60 minutes. Cycling shoes with SPD clips are ideal (many studios provide them). Bring water and a towel — you\'ll sweat. Instructors guide resistance changes and cadence to music.',
+    difficulty:'All levels', duration:'45–60 min', calories:'400–600 kcal',
+    gear:'Cycling shoes (or trainers), padded shorts optional',
+    styles:['SoulCycle-style','Rhythm Cycling','Power Cycling','Endurance Rides','Peloton-style'],
+    image:'cycling',
+  },
+  boxing: {
+    name:'Boxing & Kickboxing', filter:'Boxing', icon:'fa-hand-fist', color:'#7D3C98', bg:'#F4ECF7',
+    tagline:'Hit harder. Stress less.',
+    description:'Boxing and kickboxing studios offer fitness-focused classes that build strength, agility, and cardiovascular endurance through bag work and technique training — no sparring required, ever.',
+    benefits:['Full-body strength and coordination','Exceptional stress relief','Burns 500–800 calories per class','Builds confidence and discipline','Improves reflexes and agility'],
+    whatToExpect:'Expect a high-energy class with punching bag work, footwork drills, and core exercises. Classes are 45–60 min. Hand wraps or gloves are usually provided. No prior boxing experience needed.',
+    difficulty:'All levels', duration:'45–60 min', calories:'500–800 kcal',
+    gear:'Hand wraps or boxing gloves, supportive shoes',
+    styles:['Fitness Boxing','Kickboxing','Muay Thai Fitness','Title Boxing-style','Shadow Boxing','Rumble Boxing'],
+    image:'hiit',
+  },
+  dance: {
+    name:'Dance Fitness', filter:'Dance', icon:'fa-music', color:'#922B21', bg:'#FDEDEC',
+    tagline:"Move like nobody's watching.",
+    description:'Dance fitness classes make cardio feel like a party. From Latin-inspired Zumba to hip-hop choreography, these classes combine the joy of dancing with the benefits of a real, intense workout.',
+    benefits:['High-calorie cardio that doesn\'t feel like exercise','Improves rhythm, coordination, and balance','Boosts mood through music and movement','No dance experience required','Full-body conditioning'],
+    whatToExpect:'Classes are 45–60 minutes of continuous movement to music. Expect simple-to-follow choreography that builds in intensity. Sneakers with some pivoting capability are helpful.',
+    difficulty:'All levels', duration:'45–60 min', calories:'300–600 kcal',
+    gear:'Supportive dance sneakers, breathable clothing',
+    styles:['Zumba','Hip Hop Fitness','Cardio Dance','Latin Dance Fitness','Ballet Fusion','Jazzercise'],
+    image:'dance',
+  },
+  aerial: {
+    name:'Aerial & Acro', filter:'Aerial', icon:'fa-wand-magic-sparkles', color:'#6B4C7A', bg:'#F5EEF8',
+    tagline:'Defy gravity. Discover strength.',
+    description:'Aerial fitness classes use silk hammocks, trapeze, or hoop (lyra) suspended from the ceiling. These classes build incredible upper body and core strength while delivering a magical, circus-inspired experience.',
+    benefits:['Builds serious upper body and grip strength','Develops spatial awareness and courage','Core strength unlike any floor workout','Increases flexibility in a fun context','Unique, confidence-building experience'],
+    whatToExpect:'Beginners start close to the ground with a skilled instructor prioritizing safety at every step. Wear form-fitting clothes without zippers or buttons. Avoid lotion on arms and legs — you need grip.',
+    difficulty:'Beginner–Advanced', duration:'60–90 min', calories:'300–500 kcal',
+    gear:'Form-fitting clothes (no zippers/buttons), no lotion on skin',
+    styles:['Aerial Silk','Aerial Hoop (Lyra)','Flying Trapeze','Aerial Yoga','Hammock Yoga','Aerial Barre'],
+    image:'fitness',
+  },
+  stretch: {
+    name:'Stretch & Recovery', filter:'Stretch', icon:'fa-person-rays', color:'#1E8449', bg:'#E9F7EF',
+    tagline:'Move better. Feel better. Recover faster.',
+    description:'Dedicated stretch and recovery studios focus on improving mobility, flexibility, and active recovery. These classes use assisted stretching, foam rolling, and therapeutic techniques to help your body repair and perform its best.',
+    benefits:['Faster muscle recovery between workouts','Improved range of motion over time','Reduced chronic pain and tension','Better posture and alignment','Injury prevention and prehab'],
+    whatToExpect:'Sessions are calm and intentional. A practitioner may assist with deeper stretches. Classes last 45–60 min. Each stretch is held 30–90 seconds. Wear comfortable, loose or stretchy clothing.',
+    difficulty:'All levels', duration:'45–60 min', calories:'80–150 kcal',
+    gear:'Comfortable loose clothing, yoga mat',
+    styles:['Assisted Stretching','Yin Yoga','Mobility Training','Foam Rolling','PNF Stretching','Fascial Stretch Therapy'],
+    image:'stretching',
+  },
+  strength: {
+    name:'Strength & Conditioning', filter:'Strength', icon:'fa-dumbbell', color:'#2C3E50', bg:'#EAECEE',
+    tagline:'Get strong. Stay strong.',
+    description:'Strength and conditioning studios provide coach-led group classes focused on building functional strength, power, and athleticism. Unlike traditional gyms, these classes offer programming, coaching, and community.',
+    benefits:['Builds lean muscle and bone density','Boosts resting metabolism long-term','Functional strength for everyday life','Structured programming removes guesswork','Supportive group environment'],
+    whatToExpect:'Classes use barbells, dumbbells, kettlebells, and bodyweight. Sessions run 45–60 min: warm-up, skill work, then workout. Coaches ensure proper form. All levels welcome — weights are always scaled.',
+    difficulty:'All levels', duration:'45–60 min', calories:'300–550 kcal',
+    gear:'Athletic shoes, comfortable workout clothes',
+    styles:['CrossFit','Olympic Lifting','Functional Fitness','Bootcamp','Kettlebell Training','AMRAP-style'],
+    image:'strength',
+  },
+};
+
+const CLASS_PAGE_CSS = `
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --blush:#F9EAEA;--blush-light:#FDF6F6;--rose:#E8B4B8;--rose-deep:#C97E84;
+    --lavender:#EDE5FA;--lavender-deep:#B39DDB;--gold:#C9A96E;--gold-light:#F5E8C8;
+    --plum:#3D2B3D;--plum-mid:#6B4C6B;--plum-light:#9E7E9E;--off-white:#FDF8F8;
+    --border:#F0DCE0;--shadow:rgba(61,43,61,0.08);
+  }
+  body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--plum);line-height:1.6;}
+  nav{position:fixed;top:0;left:0;right:0;height:64px;background:rgba(253,248,248,.92);
+    backdrop-filter:blur(20px);border-bottom:1px solid var(--border);
+    display:flex;align-items:center;justify-content:space-between;padding:0 32px;z-index:100;}
+  .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;font-family:'Playfair Display',serif;
+    font-size:18px;font-weight:600;color:var(--plum);}
+  .nav-links-r{display:flex;gap:20px;align-items:center;}
+  .nav-links-r a{text-decoration:none;font-size:13.5px;font-weight:500;color:var(--plum-mid);transition:color .2s;}
+  .nav-links-r a:hover{color:var(--plum);}
+  .nav-cta{background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));
+    color:#fff !important;padding:9px 20px;border-radius:50px;font-size:13px;}
+  /* Hero */
+  .hero{padding:120px 24px 56px;text-align:center;position:relative;overflow:hidden;}
+  .hero-blob{position:absolute;inset:0;z-index:0;
+    background:radial-gradient(ellipse 80% 60% at 50% 0%,var(--blush) 0%,var(--lavender) 40%,var(--off-white) 100%);}
+  .hero-inner{position:relative;z-index:1;max-width:700px;margin:0 auto;}
+  .hero-icon{width:72px;height:72px;border-radius:20px;display:flex;align-items:center;justify-content:center;
+    font-size:28px;margin:0 auto 20px;box-shadow:0 8px 28px var(--shadow);}
+  .hero-title{font-family:'Playfair Display',serif;font-size:clamp(36px,6vw,52px);font-weight:700;
+    line-height:1.15;color:var(--plum);margin-bottom:12px;}
+  .hero-title em{font-style:italic;color:var(--rose-deep);}
+  .hero-tagline{font-size:18px;color:var(--plum-mid);margin-bottom:32px;}
+  .hero-stats{display:flex;justify-content:center;gap:28px;flex-wrap:wrap;margin-bottom:36px;}
+  .stat-chip{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);
+    border-radius:50px;padding:8px 18px;font-size:13px;font-weight:500;box-shadow:0 2px 8px var(--shadow);}
+  .stat-chip i{color:var(--rose-deep);font-size:13px;}
+  .hero-cta{display:inline-flex;align-items:center;gap:10px;
+    background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));
+    color:#fff;padding:16px 32px;border-radius:50px;font-size:16px;font-weight:600;
+    text-decoration:none;box-shadow:0 6px 20px rgba(201,126,132,.35);transition:transform .2s,box-shadow .2s;}
+  .hero-cta:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(201,126,132,.45);}
+  /* Content */
+  .content{max-width:860px;margin:0 auto;padding:56px 24px;}
+  .section{margin-bottom:52px;}
+  .section-title{font-family:'Playfair Display',serif;font-size:24px;font-weight:600;
+    color:var(--plum);margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid var(--rose);}
+  .section p{font-size:16px;color:var(--plum-mid);line-height:1.8;margin-bottom:14px;}
+  .benefits-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;}
+  .benefit-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px 20px;
+    display:flex;align-items:flex-start;gap:12px;box-shadow:0 2px 8px var(--shadow);}
+  .benefit-check{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+  .benefit-check i{color:#fff;font-size:11px;}
+  .benefit-text{font-size:14px;color:var(--plum);line-height:1.5;}
+  .styles-list{display:flex;flex-wrap:wrap;gap:10px;}
+  .style-tag{background:var(--lavender);color:var(--plum-mid);border-radius:50px;
+    padding:7px 16px;font-size:13px;font-weight:500;}
+  .info-box{background:#fff;border:1px solid var(--border);border-radius:16px;
+    padding:24px 28px;box-shadow:0 2px 10px var(--shadow);}
+  .info-box p{margin-bottom:0;}
+  /* Browse all section */
+  .browse-section{background:var(--blush-light);border-radius:20px;padding:40px 32px;margin-top:48px;}
+  .browse-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:600;
+    color:var(--plum);margin-bottom:24px;text-align:center;}
+  .browse-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;}
+  .browse-card{background:#fff;border:1px solid var(--border);border-radius:14px;
+    padding:16px 12px;text-align:center;text-decoration:none;transition:all .2s;
+    display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .browse-card:hover{border-color:var(--rose);box-shadow:0 4px 16px var(--shadow);transform:translateY(-2px);}
+  .browse-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .browse-name{font-size:12px;font-weight:500;color:var(--plum);}
+  footer{text-align:center;padding:40px 24px;border-top:1px solid var(--border);
+    color:var(--plum-light);font-size:13px;}
+  footer a{color:var(--rose-deep);text-decoration:none;}
+  @media(max-width:640px){
+    nav{padding:0 16px;height:56px;}
+    .hero{padding:90px 16px 40px;}
+    .content{padding:36px 16px;}
+    .hero-stats{gap:10px;}
+  }
+`;
+
+function buildClassesIndexHtml(origin) {
+  const cards = Object.entries(CLASS_GUIDE).map(([slug, c]) => `
+    <a class="class-index-card" href="${origin}/classes/${slug}">
+      <div class="class-index-icon" style="background:${c.bg}"><i class="fa-solid ${c.icon}" style="color:${c.color}"></i></div>
+      <div class="class-index-name">${c.name}</div>
+      <div class="class-index-tag">${c.difficulty}</div>
+    </a>`).join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Class Guide — Studio Locater</title>
+  <meta name="description" content="Explore every boutique fitness class type — from yoga and Pilates to HIIT, barre, Lagree, and more. Find studios near you for any style.">
+  <link rel="canonical" href="${origin}/classes">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    ${CLASS_PAGE_CSS}
+    .index-hero{padding:110px 24px 52px;text-align:center;position:relative;overflow:hidden;}
+    .index-hero-blob{position:absolute;inset:0;
+      background:radial-gradient(ellipse 90% 70% at 50% 0%,var(--blush) 0%,var(--lavender) 45%,var(--off-white) 100%);}
+    .index-hero-inner{position:relative;z-index:1;max-width:640px;margin:0 auto;}
+    .index-hero-title{font-family:'Playfair Display',serif;font-size:clamp(32px,6vw,50px);
+      font-weight:700;color:var(--plum);line-height:1.2;margin-bottom:14px;}
+    .index-hero-title em{font-style:italic;color:var(--rose-deep);}
+    .index-hero-sub{font-size:17px;color:var(--plum-mid);max-width:500px;margin:0 auto 32px;}
+    .class-index-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;
+      max-width:960px;margin:0 auto;padding:0 24px 64px;}
+    .class-index-card{background:#fff;border:1px solid var(--border);border-radius:16px;
+      padding:20px 14px;text-align:center;text-decoration:none;
+      display:flex;flex-direction:column;align-items:center;gap:10px;
+      transition:all .2s;box-shadow:0 2px 8px var(--shadow);}
+    .class-index-card:hover{border-color:var(--rose);box-shadow:0 8px 24px rgba(201,126,132,.2);transform:translateY(-3px);}
+    .class-index-icon{width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;}
+    .class-index-name{font-size:14px;font-weight:600;color:var(--plum);}
+    .class-index-tag{font-size:11px;color:var(--plum-light);background:var(--blush);
+      border-radius:50px;padding:3px 10px;}
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="nav-logo" href="/"><i class="fa-solid fa-spa" style="color:var(--rose-deep)"></i> Studio Locater</a>
+    <div class="nav-links-r">
+      <a href="/">Explore</a>
+      <a href="/blog">Blog</a>
+      <a class="nav-cta" href="/">Find Studios</a>
+    </div>
+  </nav>
+
+  <div class="index-hero">
+    <div class="index-hero-blob"></div>
+    <div class="index-hero-inner">
+      <div class="index-hero-title">Your Complete<br><em>Class Guide</em></div>
+      <p class="index-hero-sub">Every boutique fitness class type explained — what to expect, benefits, gear, and how to find studios near you.</p>
+    </div>
+  </div>
+
+  <div class="class-index-grid">
+    ${cards}
+  </div>
+
+  <footer>
+    <a href="/">Studio Locater</a> &nbsp;·&nbsp; <a href="/blog">Blog</a> &nbsp;·&nbsp; © 2026
+  </footer>
+</body>
+</html>`;
+}
+
+function buildClassPageHtml(origin, slug) {
+  const c = CLASS_GUIDE[slug];
+  if (!c) return null;
+
+  const heroImg = unsplashUrl(c.image, 1200, 480);
+  const benefitCards = c.benefits.map(b => `
+    <div class="benefit-card">
+      <div class="benefit-check"><i class="fa-solid fa-check"></i></div>
+      <div class="benefit-text">${escHtml(b)}</div>
+    </div>`).join('');
+
+  const styleTags = c.styles.map(s => `<span class="style-tag">${escHtml(s)}</span>`).join('');
+
+  const otherClasses = Object.entries(CLASS_GUIDE)
+    .filter(([k]) => k !== slug)
+    .slice(0, 8)
+    .map(([k, oc]) => `
+      <a class="browse-card" href="${origin}/classes/${k}">
+        <div class="browse-icon" style="background:${oc.bg}"><i class="fa-solid ${oc.icon}" style="color:${oc.color}"></i></div>
+        <span class="browse-name">${oc.name}</span>
+      </a>`).join('');
+
+  const filterParam = encodeURIComponent(c.filter);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${escHtml(c.name)} Classes Near You — Studio Locater</title>
+  <meta name="description" content="${escHtml(c.description.slice(0, 155))}">
+  <link rel="canonical" href="${origin}/classes/${slug}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    ${CLASS_PAGE_CSS}
+    .hero-img-wrap{position:relative;height:clamp(220px,35vw,400px);overflow:hidden;margin-top:64px;}
+    .hero-img{width:100%;height:100%;object-fit:cover;}
+    .hero-img-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(61,43,61,.3) 0%,rgba(61,43,61,.55) 100%);}
+    .hero-text-over{position:absolute;bottom:36px;left:0;right:0;padding:0 32px;text-align:center;color:#fff;}
+    .hero-text-over .breadcrumb{font-size:13px;opacity:.85;margin-bottom:10px;}
+    .hero-text-over .breadcrumb a{color:#fff;text-decoration:none;opacity:.8;}
+    .hero-text-over h1{font-family:'Playfair Display',serif;font-size:clamp(28px,5vw,46px);font-weight:700;
+      text-shadow:0 2px 16px rgba(0,0,0,.4);margin-bottom:8px;}
+    .hero-text-over .hero-tagline-over{font-size:16px;opacity:.9;font-style:italic;}
+    @media(max-width:640px){
+      .hero-img-wrap{height:200px;margin-top:56px;}
+      .hero-text-over{bottom:20px;padding:0 16px;}
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="nav-logo" href="/"><i class="fa-solid fa-spa" style="color:var(--rose-deep)"></i> Studio Locater</a>
+    <div class="nav-links-r">
+      <a href="/classes">All Classes</a>
+      <a href="/blog">Blog</a>
+      <a class="nav-cta" href="/?filter=${filterParam}&locate=true">Find Studios Near Me</a>
+    </div>
+  </nav>
+
+  <div class="hero-img-wrap">
+    <img class="hero-img" src="${heroImg}" alt="${escHtml(c.name)} class" width="1200" height="480" loading="eager">
+    <div class="hero-img-overlay"></div>
+    <div class="hero-text-over">
+      <div class="breadcrumb"><a href="/classes">Classes</a> / ${escHtml(c.name)}</div>
+      <h1>${escHtml(c.name)}</h1>
+      <div class="hero-tagline-over">${escHtml(c.tagline)}</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Stats chips -->
+    <div class="hero-stats" style="margin-bottom:40px;justify-content:flex-start;">
+      <div class="stat-chip"><i class="fa-solid fa-signal"></i> ${escHtml(c.difficulty)}</div>
+      <div class="stat-chip"><i class="fa-regular fa-clock"></i> ${escHtml(c.duration)}</div>
+      <div class="stat-chip"><i class="fa-solid fa-fire"></i> ${escHtml(c.calories)}</div>
+      <div class="stat-chip"><i class="fa-solid fa-shirt"></i> ${escHtml(c.gear)}</div>
+    </div>
+
+    <!-- CTA -->
+    <div style="text-align:center;margin-bottom:52px;">
+      <a class="hero-cta" href="/?filter=${filterParam}&locate=true">
+        <i class="fa-solid fa-location-crosshairs"></i> Find ${escHtml(c.name)} Studios Near Me
+      </a>
+    </div>
+
+    <!-- Description -->
+    <div class="section">
+      <div class="section-title">What is ${escHtml(c.name)}?</div>
+      <div class="info-box"><p>${escHtml(c.description)}</p></div>
+    </div>
+
+    <!-- Benefits -->
+    <div class="section">
+      <div class="section-title">Benefits</div>
+      <div class="benefits-grid">${benefitCards}</div>
+    </div>
+
+    <!-- What to Expect -->
+    <div class="section">
+      <div class="section-title">What to Expect</div>
+      <div class="info-box"><p>${escHtml(c.whatToExpect)}</p></div>
+    </div>
+
+    <!-- Styles / Variations -->
+    <div class="section">
+      <div class="section-title">Styles &amp; Variations</div>
+      <div class="styles-list">${styleTags}</div>
+    </div>
+
+    <!-- Second CTA -->
+    <div style="text-align:center;padding:24px 0 12px;">
+      <a class="hero-cta" href="/?filter=${filterParam}&locate=true">
+        <i class="fa-solid fa-location-crosshairs"></i> Find ${escHtml(c.name)} Studios Near Me
+      </a>
+    </div>
+
+    <!-- Browse Other Classes -->
+    <div class="browse-section">
+      <div class="browse-title">Explore Other Class Types</div>
+      <div class="browse-grid">${otherClasses}</div>
+    </div>
+  </div>
+
+  <footer>
+    <a href="/">Studio Locater</a> &nbsp;·&nbsp; <a href="/classes">Class Guide</a> &nbsp;·&nbsp; <a href="/blog">Blog</a> &nbsp;·&nbsp; © 2026
+  </footer>
+</body>
+</html>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main fetch handler + scheduled handler
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1160,6 +1627,24 @@ export default {
     if (path === '/api/blog-posts' && method === 'GET') {
       try { return await handlePublicBlogPostsJson(request, env); }
       catch (r) { return r instanceof Response ? r : jsonRes({ error: String(r) }, 500); }
+    }
+
+    // ── Class guide routes ──────────────────────────────────────────────────
+    if (path === '/classes') {
+      return new Response(buildClassesIndexHtml(url.origin), {
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=3600' }
+      });
+    }
+    {
+      const cm = path.match(/^\/classes\/([^/]+)$/);
+      if (cm) {
+        const slug = decodeURIComponent(cm[1]).toLowerCase();
+        const html = buildClassPageHtml(url.origin, slug);
+        if (html) return new Response(html, {
+          headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=3600' }
+        });
+        return new Response('Class type not found', { status: 404 });
+      }
     }
 
     // ── Blog routes ─────────────────────────────────────────────────────────
