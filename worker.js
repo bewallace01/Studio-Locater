@@ -351,7 +351,7 @@ function buildBlogIndexHtml(origin, posts) {
 </head>
 <body>
   <nav>
-    <a class="nav-logo" href="/"><div class="nav-logo-icon">🏋️</div><span class="nav-logo-text">Studio Locater</span></a>
+    <a class="nav-logo" href="/"><div class="nav-logo-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg></div><span class="nav-logo-text">Studio Locater</span></a>
     <a class="nav-link" href="/">← Back to Studios</a>
   </nav>
   <div class="hero">
@@ -402,7 +402,7 @@ function buildBlogPostHtml(origin, post) {
 </head>
 <body>
   <nav>
-    <a class="nav-logo" href="/"><div class="nav-logo-icon">🏋️</div><span class="nav-logo-text">Studio Locater</span></a>
+    <a class="nav-logo" href="/"><div class="nav-logo-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg></div><span class="nav-logo-text">Studio Locater</span></a>
     <a class="nav-link" href="/blog">← Blog</a>
   </nav>
   <div class="post-hero">

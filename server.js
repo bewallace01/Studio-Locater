@@ -10,6 +10,7 @@ require('dotenv').config({ path: path.join(__dirname, 'studio', '.env') });
 const express = require('express');
 
 const app = express();
+app.use(express.json({ limit: '48kb' }));
 const PORT = Number(process.env.PORT) || 3040;
 const YELP_KEY = process.env.YELP_API_KEY;
 const SANITY_PROJECT_ID =
@@ -19,6 +20,16 @@ const GOOGLE_PLACES_KEY =
   process.env.GOOGLE_API_KEY || process.env.SANITY_STUDIO_GOOGLE_MAPS_API_KEY || '';
 
 const publicDir = path.join(__dirname, 'public');
+
+/** Local stub: signup tracking persists only on the Cloudflare Worker (D1). */
+app.post('/api/track/signup', (_req, res) => {
+  res.json({ ok: true, local: true });
+});
+
+app.get('/admin', (_req, res) => {
+  res.sendFile(path.join(publicDir, 'admin.html'));
+});
+
 app.get('/', (_req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
 });

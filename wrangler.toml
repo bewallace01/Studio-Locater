@@ -9,10 +9,32 @@ compatibility_date = "2024-01-01"
 [assets]
 directory = "public"
 
+# ── Cron: run blog scheduler every day at 8am UTC ────────────────────────────
+[triggers]
+crons = ["0 8 * * *"]
+
+# ── D1 database (admin: sessions, blog posts, signup tracking) ────────────────
+[[d1_databases]]
+binding = "DB"
+database_name = "studio-locater-admin"
+database_id = "95825d76-550f-47c9-b0b0-e913749d18a8"
+
+# ── KV namespace (OAuth sessions) ─────────────────────────────────────────────
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "82fe593a33594a5798346fdb4ad910fc"
+
 # Public Sanity read (apicdn) — used for /studios/:slug and /sitemap.xml
 # Optional: merge photos/ratings/description from Google Place Details on studio pages:
 #   npx wrangler secret put GOOGLE_API_KEY
 # (same key as Places API for your app)
+#
+# Admin secrets — run these once:
+#   npx wrangler secret put GOOGLE_CLIENT_ID      ← from Google Cloud Console OAuth 2.0
+#   npx wrangler secret put GOOGLE_CLIENT_SECRET  ← from Google Cloud Console OAuth 2.0
+#   npx wrangler secret put ADMIN_EMAILS          ← comma-separated: you@gmail.com,other@gmail.com
+#   npx wrangler secret put SESSION_SECRET        ← any long random string (openssl rand -hex 32)
+#   npx wrangler secret put ANTHROPIC_API_KEY     ← your Anthropic API key for blog generation
 [vars]
 SANITY_PROJECT_ID = "t0z5ndwm"
 SANITY_DATASET = "production"
@@ -29,3 +51,15 @@ SANITY_DATASET = "production"
 
 [env.staging.assets]
 directory = "public"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "studio-locater-admin"
+database_id = "95825d76-550f-47c9-b0b0-e913749d18a8"
+
+[[env.staging.kv_namespaces]]
+binding = "SESSIONS"
+id = "82fe593a33594a5798346fdb4ad910fc"
+
+[env.staging.triggers]
+crons = ["0 8 * * *"]

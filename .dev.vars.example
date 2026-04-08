@@ -1,0 +1,11 @@
+# Copy to `.dev.vars` in the project root for `npm run dev:worker` / `npx wrangler dev`.
+# Do not commit `.dev.vars` (it is gitignored).
+
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+ADMIN_EMAILS=your@gmail.com
+SESSION_SECRET=
+ANTHROPIC_API_KEY=
+
+# Optional (studio pages / Places — same as production if you have it)
+# GOOGLE_API_KEY=

@@ -120,6 +120,8 @@
       border-bottom:1px solid var(--border); transition:box-shadow 0.3s;
     }
     nav.scrolled { box-shadow:0 4px 28px var(--shadow); }
+    /* Fixed nav: anchor scroll targets sit below the bar */
+    #main { scroll-margin-top: 88px; }
     .nav-logo { display:flex; align-items:center; gap:10px; text-decoration:none; cursor:pointer; }
     .nav-logo-icon {
       width:36px; height:36px; border-radius:50%;
@@ -676,16 +678,15 @@
 
 <!-- ════════════ NAV ════════════ -->
 <nav id="navbar">
-  <a class="nav-logo" onclick="scrollToHero()">
+  <a class="nav-logo" href="#" onclick="event.preventDefault(); scrollToHero();" aria-label="Studio Locater home">
     <div class="nav-logo-icon"><i class="fa-solid fa-spa"></i></div>
     <span class="nav-logo-text">Studio Locater</span>
   </a>
   <ul class="nav-links">
-    <li><a onclick="scrollToMain()">Explore</a></li>
-    <li><a onclick="openClasses()">Classes</a></li>
-    <li><a onclick="toast('Instructor profiles coming soon','info')">Instructors</a></li>
-    <li><a onclick="toast('Our blog launches next month','info')">Blog</a></li>
-    <li><a class="nav-cta" onclick="openSignup()">Sign Up Free</a></li>
+    <li><a href="#main" onclick="event.preventDefault(); scrollToMain();">Explore</a></li>
+    <li><a href="#" onclick="event.preventDefault(); openClasses();">Classes</a></li>
+    <li><a href="#" onclick="event.preventDefault(); toast('Our blog launches next month','info')">Blog</a></li>
+    <li><a class="nav-cta" href="#" onclick="event.preventDefault(); openSignup();">Sign Up Free</a></li>
   </ul>
   <button type="button" class="nav-menu-btn" id="navMenuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="navDrawer">
     <i class="fa-solid fa-bars"></i>
@@ -695,9 +696,8 @@
 <div class="nav-drawer" id="navDrawer" aria-hidden="true" onclick="if(event.target===this)toggleNavDrawer(false)">
   <div class="nav-drawer-panel" onclick="event.stopPropagation()">
     <button type="button" class="nav-drawer-close" onclick="toggleNavDrawer(false)" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
-    <a href="#" onclick="event.preventDefault();toggleNavDrawer(false);scrollToMain()">Explore</a>
+    <a href="#main" onclick="event.preventDefault();toggleNavDrawer(false);scrollToMain()">Explore</a>
     <a href="#" onclick="event.preventDefault();toggleNavDrawer(false);openClasses()">Classes</a>
-    <a href="#" onclick="event.preventDefault();toggleNavDrawer(false);toast('Instructor profiles coming soon','info')">Instructors</a>
     <a href="#" onclick="event.preventDefault();toggleNavDrawer(false);toast('Our blog launches next month','info')">Blog</a>
     <a href="#" class="nav-drawer-cta" onclick="event.preventDefault();toggleNavDrawer(false);openSignup()">Sign Up Free</a>
   </div>
@@ -855,20 +855,20 @@
         <div class="perk"><i class="fa-solid fa-wand-magic-sparkles"></i> Get personalised recommendations</div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">First Name</label><input class="form-input" type="text" placeholder="Sofia"></div>
-        <div class="form-group"><label class="form-label">Last Name</label><input class="form-input" type="text" placeholder="Chen"></div>
+        <div class="form-group"><label class="form-label">First Name</label><input id="signupFirstName" class="form-input" type="text" placeholder="Sofia" autocomplete="given-name"></div>
+        <div class="form-group"><label class="form-label">Last Name</label><input id="signupLastName" class="form-input" type="text" placeholder="Chen" autocomplete="family-name"></div>
       </div>
-      <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" placeholder="you@example.com"></div>
-      <div class="form-group"><label class="form-label">Password</label><input class="form-input" type="password" placeholder="Min. 8 characters"></div>
+      <div class="form-group"><label class="form-label">Email</label><input id="signupEmail" class="form-input" type="email" placeholder="you@example.com" autocomplete="email"></div>
+      <div class="form-group"><label class="form-label">Password</label><input id="signupPassword" class="form-input" type="password" placeholder="Min. 8 characters" autocomplete="new-password"></div>
       <div class="form-group">
         <label class="form-label">Favourite Class Type</label>
-        <select class="form-select">
+        <select id="signupClassType" class="form-select">
           <option>Yoga</option><option>Pilates</option><option>Hot Yoga</option><option>Infrared</option>
           <option>Barre</option><option>Lagree</option><option>Solidcore</option><option>Niche</option>
           <option>Reformer Pilates</option><option>Meditation</option>
         </select>
       </div>
-      <button class="form-btn" onclick="signupSuccess()">Create Free Account</button>
+      <button type="button" class="form-btn" onclick="signupSuccess()">Create Free Account</button>
       <div class="form-hint">Already have an account? <a onclick="toast('Login coming soon','info')">Sign in</a></div>
     </div>
   </div>
@@ -1789,7 +1789,11 @@ function setFilter(el) {
 
 function filterFromModal(type) {
   closeModal('classesOverlay');
-  const pill = [...document.querySelectorAll('.filter-pill')].find(p=>p.dataset.filter===type);
+  const filterKey =
+    type === 'Reformer'
+      ? 'Pilates'
+      : type;
+  const pill = [...document.querySelectorAll('.filter-pill')].find(p => p.dataset.filter === filterKey);
   if (pill) setFilter(pill);
   scrollToMain();
 }
@@ -1902,10 +1906,34 @@ function confirmBooking(name,time) {
 /* ══════════════════════════════════════
    SIGNUP & CLASSES MODALS
 ══════════════════════════════════════ */
-function openSignup()  { document.getElementById('signupOverlay').classList.add('open'); }
-function openClasses() { document.getElementById('classesOverlay').classList.add('open'); }
+function openSignup() {
+  toggleNavDrawer(false);
+  document.getElementById('signupOverlay').classList.add('open');
+}
+function openClasses() {
+  toggleNavDrawer(false);
+  document.getElementById('classesOverlay').classList.add('open');
+}
+
+function trackSignupEvent() {
+  const emailEl = document.getElementById('signupEmail');
+  const classEl = document.getElementById('signupClassType');
+  const email = emailEl && emailEl.value ? String(emailEl.value).trim() : '';
+  const classType = classEl && classEl.value ? String(classEl.value) : '';
+  const payload = {
+    source: 'homepage',
+    metadata: { classType: classType || undefined }
+  };
+  if (email) payload.email = email;
+  fetch('/api/track/signup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(() => {});
+}
 
 function signupSuccess() {
+  trackSignupEvent();
   document.getElementById('signupContent').innerHTML=`
     <div class="booking-success">
       <div class="booking-success-icon"><i class="fa-solid fa-spa"></i></div>
