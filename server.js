@@ -15,6 +15,8 @@ const YELP_KEY = process.env.YELP_API_KEY;
 const SANITY_PROJECT_ID =
   process.env.SANITY_STUDIO_PROJECT_ID || process.env.SANITY_PROJECT_ID || 't0z5ndwm';
 const SANITY_DATASET = process.env.SANITY_STUDIO_DATASET || process.env.SANITY_DATASET || 'production';
+const GOOGLE_PLACES_KEY =
+  process.env.GOOGLE_API_KEY || process.env.SANITY_STUDIO_GOOGLE_MAPS_API_KEY || '';
 
 const publicDir = path.join(__dirname, 'public');
 app.get('/', (_req, res) => {
@@ -38,9 +40,12 @@ app.get('/sitemap.xml', async (req, res) => {
 
 app.get('/studios/id/:docId', async (req, res) => {
   try {
-    const { fetchStudioByDocumentId, buildStudioDetailHtml, buildStudioNotFoundHtml } = await import(
-      path.join(__dirname, 'studio-detail-page.mjs')
-    );
+    const {
+      fetchStudioByDocumentId,
+      enrichStudioWithGooglePlaces,
+      buildStudioDetailHtml,
+      buildStudioNotFoundHtml
+    } = await import(path.join(__dirname, 'studio-detail-page.mjs'));
     const docId = String(req.params.docId || '').trim();
     const proto = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.get('host') || 'localhost';
@@ -52,7 +57,10 @@ app.get('/studios/id/:docId', async (req, res) => {
       res.status(404).type('html').send(buildStudioNotFoundHtml(`${origin}/`));
       return;
     }
-    res.type('html').send(buildStudioDetailHtml(doc, { canonicalUrl, robotsNoIndex: true }));
+    const { doc: merged, augmented } = await enrichStudioWithGooglePlaces(doc, GOOGLE_PLACES_KEY);
+    res.type('html').send(
+      buildStudioDetailHtml(merged, { canonicalUrl, robotsNoIndex: true, googleAugmented: augmented })
+    );
   } catch (e) {
     console.error(e);
     res.status(500).type('html').send('Server error');
@@ -61,9 +69,12 @@ app.get('/studios/id/:docId', async (req, res) => {
 
 app.get('/studios/:slug', async (req, res) => {
   try {
-    const { fetchStudioBySlug, buildStudioDetailHtml, buildStudioNotFoundHtml } = await import(
-      path.join(__dirname, 'studio-detail-page.mjs')
-    );
+    const {
+      fetchStudioBySlug,
+      enrichStudioWithGooglePlaces,
+      buildStudioDetailHtml,
+      buildStudioNotFoundHtml
+    } = await import(path.join(__dirname, 'studio-detail-page.mjs'));
     const slug = String(req.params.slug || '').trim();
     if (slug === 'id') {
       const proto = req.headers['x-forwarded-proto'] || req.protocol;
@@ -81,7 +92,8 @@ app.get('/studios/:slug', async (req, res) => {
       res.status(404).type('html').send(buildStudioNotFoundHtml(`${origin}/`));
       return;
     }
-    res.type('html').send(buildStudioDetailHtml(doc, { canonicalUrl }));
+    const { doc: merged, augmented } = await enrichStudioWithGooglePlaces(doc, GOOGLE_PLACES_KEY);
+    res.type('html').send(buildStudioDetailHtml(merged, { canonicalUrl, googleAugmented: augmented }));
   } catch (e) {
     console.error(e);
     res.status(500).type('html').send('Server error');

@@ -4,6 +4,7 @@
 import {
   fetchStudioBySlug,
   fetchStudioByDocumentId,
+  enrichStudioWithGooglePlaces,
   buildStudioDetailHtml,
   buildStudioNotFoundHtml,
   fetchAllStudioSlugs,
@@ -23,6 +24,12 @@ function studioHtmlResponse(html) {
       'Cache-Control': 'public, max-age=300'
     }
   });
+}
+
+async function htmlForStudioDoc(doc, env, { canonicalUrl, robotsNoIndex }) {
+  const gKey = String(env.GOOGLE_API_KEY || '').trim();
+  const { doc: merged, augmented } = await enrichStudioWithGooglePlaces(doc, gKey);
+  return buildStudioDetailHtml(merged, { canonicalUrl, robotsNoIndex, googleAugmented: augmented });
 }
 
 export default {
@@ -67,9 +74,8 @@ export default {
             }
           });
         }
-        return studioHtmlResponse(
-          buildStudioDetailHtml(doc, { canonicalUrl, robotsNoIndex: true })
-        );
+        const html = await htmlForStudioDoc(doc, env, { canonicalUrl, robotsNoIndex: true });
+        return studioHtmlResponse(html);
       } catch {
         return new Response('Server error', {
           status: 500,
@@ -101,7 +107,8 @@ export default {
             }
           });
         }
-        return studioHtmlResponse(buildStudioDetailHtml(doc, { canonicalUrl }));
+        const html = await htmlForStudioDoc(doc, env, { canonicalUrl, robotsNoIndex: false });
+        return studioHtmlResponse(html);
       } catch {
         return new Response('Server error', {
           status: 500,

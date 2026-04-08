@@ -10,6 +10,9 @@ compatibility_date = "2024-01-01"
 directory = "public"
 
 # Public Sanity read (apicdn) — used for /studios/:slug and /sitemap.xml
+# Optional: merge photos/ratings/description from Google Place Details on studio pages:
+#   npx wrangler secret put GOOGLE_API_KEY
+# (same key as Places API for your app)
 [vars]
 SANITY_PROJECT_ID = "t0z5ndwm"
 SANITY_DATASET = "production"

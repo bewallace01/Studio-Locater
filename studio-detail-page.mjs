@@ -61,25 +61,30 @@ function metaDescription(studio) {
   return line.slice(0, 162).trim() + '…';
 }
 
+function studioForJsonLd(studio) {
+  return { ...studio };
+}
+
 function jsonLdLocalBusiness(studio, canonicalUrl) {
-  const name = studio.name || 'Studio';
-  const addr = studio.address;
+  const s = studioForJsonLd(studio);
+  const name = s.name || 'Studio';
+  const addr = s.address;
   const street = addr && typeof addr === 'object' ? [addr.streetLine1, addr.streetLine2].filter(Boolean).join(', ') : '';
   const locality = addr && addr.city ? String(addr.city) : '';
   const region = addr && addr.region ? String(addr.region) : '';
   const postal = addr && addr.postalCode ? String(addr.postalCode) : '';
   const country = addr && addr.country ? String(addr.country) : 'US';
-  const lat = studio.lat != null && Number.isFinite(+studio.lat) ? +studio.lat : null;
-  const lng = studio.lng != null && Number.isFinite(+studio.lng) ? +studio.lng : null;
-  const img = studio.cardImageUrl && String(studio.cardImageUrl).trim() ? String(studio.cardImageUrl).trim() : null;
+  const lat = s.lat != null && Number.isFinite(+s.lat) ? +s.lat : null;
+  const lng = s.lng != null && Number.isFinite(+s.lng) ? +s.lng : null;
+  const img = s.cardImageUrl && String(s.cardImageUrl).trim() ? String(s.cardImageUrl).trim() : null;
   const sameAs = [];
-  if (studio.website && String(studio.website).trim()) sameAs.push(normalizeExternalUrl(studio.website));
+  if (s.website && String(s.website).trim()) sameAs.push(normalizeExternalUrl(s.website));
 
   const obj = {
     '@context': 'https://schema.org',
     '@type': 'SportsActivityLocation',
     name,
-    description: metaDescription(studio) || undefined,
+    description: metaDescription(s) || undefined,
     url: canonicalUrl,
     image: img || undefined,
     address: {
@@ -99,14 +104,14 @@ function jsonLdLocalBusiness(studio, canonicalUrl) {
           }
         : undefined,
     aggregateRating:
-      typeof studio.rating === 'number' &&
-      Number.isFinite(studio.rating) &&
-      typeof studio.reviews === 'number' &&
-      studio.reviews > 0
+      typeof s.rating === 'number' &&
+      Number.isFinite(s.rating) &&
+      typeof s.reviews === 'number' &&
+      s.reviews > 0
         ? {
             '@type': 'AggregateRating',
-            ratingValue: studio.rating,
-            reviewCount: studio.reviews,
+            ratingValue: s.rating,
+            reviewCount: s.reviews,
             bestRating: 5,
             worstRating: 1
           }
@@ -119,10 +124,10 @@ function jsonLdLocalBusiness(studio, canonicalUrl) {
 
 /**
  * @param {object} studio - document from fetchStudioBySlug (plain fields + address object)
- * @param {{ canonicalUrl: string, robotsNoIndex?: boolean }} opts
+ * @param {{ canonicalUrl: string, robotsNoIndex?: boolean, googleAugmented?: boolean }} opts
  */
 export function buildStudioDetailHtml(studio, opts) {
-  const { canonicalUrl, robotsNoIndex } = opts;
+  const { canonicalUrl, robotsNoIndex, googleAugmented } = opts;
   const name = escapeHtml(studio.name || 'Studio');
   const addrLine = escapeHtml(formatSanityAddress(studio.address));
   const desc = studio.description && String(studio.description).trim();
@@ -140,10 +145,7 @@ export function buildStudioDetailHtml(studio, opts) {
   const price = priceLabel(studio.priceTier);
   const tags = Array.isArray(studio.tags) ? studio.tags.filter(Boolean) : [];
 
-  const jsonLd = jsonLdLocalBusiness(
-    { ...studio, lat: studio.lat, lng: studio.lng, cardImageUrl: studio.cardImageUrl },
-    canonicalUrl
-  );
+  const jsonLd = jsonLdLocalBusiness(studio, canonicalUrl);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -193,6 +195,8 @@ export function buildStudioDetailHtml(studio, opts) {
     .pill { display:inline-block; padding:5px 12px; border-radius:50px; font-size:12px; font-weight:600; background:var(--blush); color:var(--rose-deep); margin:3px 6px 3px 0; }
     .tags span { display:inline-block; padding:4px 10px; border-radius:50px; font-size:12px; background:#fff; border:1px solid var(--border); margin:3px 6px 3px 0; color:var(--plum-mid); }
     blockquote { border-left:3px solid var(--rose-deep); padding-left:16px; margin:16px 0; font-style:italic; color:var(--plum-mid); }
+    .google-note { font-size:12px; color:var(--plum-light); margin:-8px 0 20px; line-height:1.45; }
+    .google-note i { margin-right:6px; color:#4285F4; }
   </style>
 </head>
 <body>
@@ -202,10 +206,17 @@ export function buildStudioDetailHtml(studio, opts) {
       <header>
         <h1 itemprop="name">${name}</h1>
         <div class="meta">
-          ${rating ? `<span><i class="fa-solid fa-star" style="color:#C9A96E"></i> <strong>${rating}</strong> (${revs.toLocaleString()} reviews)</span>` : ''}
+          ${rating
+            ? `<span><i class="fa-solid fa-star" style="color:#C9A96E"></i> <strong>${rating}</strong>${
+                revs > 0
+                  ? ` (${revs.toLocaleString()} reviews)`
+                  : ` <span style="color:var(--plum-light);font-weight:400;font-size:13px">(no reviews in directory yet)</span>`
+              }</span>`
+            : ''}
           <span><strong>${escapeHtml(price)}</strong></span>
           ${level ? `<span class="pill">${escapeHtml(level)}</span>` : ''}
         </div>
+        ${googleAugmented ? `<p class="google-note"><i class="fa-brands fa-google" aria-hidden="true"></i>Photos, ratings, and summary text below may come from Google Maps when your CMS fields are empty.</p>` : ''}
         ${img ? `<img class="hero-img" src="${img}" alt="" itemprop="image" width="800" height="450" loading="eager">` : ''}
         ${addrLine ? `<div class="addr"><i class="fa-solid fa-location-dot" aria-hidden="true"></i><span itemprop="address">${addrLine}</span></div>` : ''}
         <div class="btn-row">
@@ -281,6 +292,106 @@ export async function fetchStudioByDocumentId(documentId, projectId, dataset) {
   const doc = j.result;
   if (!doc || !doc.name) return null;
   return doc;
+}
+
+function googlePhotoUrl(photoReference, apiKey) {
+  if (!photoReference || !apiKey) return null;
+  const ref = encodeURIComponent(String(photoReference));
+  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${ref}&key=${encodeURIComponent(apiKey)}`;
+}
+
+/**
+ * Merge Google Place Details when the CMS row is sparse (mirrors homepage merge idea).
+ * Requires `GOOGLE_API_KEY` (Places) on the Worker / server.
+ * @returns {{ doc: object, augmented: boolean }}
+ */
+export async function enrichStudioWithGooglePlaces(doc, apiKey) {
+  if (!doc || !doc.name) return { doc, augmented: false };
+  const key = String(apiKey || '').trim();
+  const placeId = doc.placeId && String(doc.placeId).trim();
+  if (!key || !placeId) return { doc, augmented: false };
+
+  const fields = [
+    'name',
+    'website',
+    'rating',
+    'user_ratings_total',
+    'photos',
+    'editorial_summary',
+    'reviews',
+    'geometry'
+  ].join(',');
+  const u = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=${fields}&key=${encodeURIComponent(key)}`;
+  try {
+    const res = await fetch(u);
+    if (!res.ok) return { doc, augmented: false };
+    const data = await res.json();
+    if (data.status && data.status !== 'OK') return { doc, augmented: false };
+    const r = data.result;
+    if (!r) return { doc, augmented: false };
+
+    const out = { ...doc };
+    let augmented = false;
+
+    const hasCmsImage = doc.cardImageUrl && String(doc.cardImageUrl).trim();
+    const photoRef = Array.isArray(r.photos) && r.photos[0] && r.photos[0].photo_reference;
+    if (!hasCmsImage && photoRef) {
+      const pic = googlePhotoUrl(photoRef, key);
+      if (pic) {
+        out.cardImageUrl = pic;
+        augmented = true;
+      }
+    }
+
+    const cmsDesc = doc.description && String(doc.description).trim();
+    const editorial =
+      r.editorial_summary && r.editorial_summary.overview ? String(r.editorial_summary.overview).trim() : '';
+    if (!cmsDesc && editorial) {
+      out.description = editorial;
+      augmented = true;
+    }
+
+    const cmsWeb = doc.website && String(doc.website).trim();
+    if (!cmsWeb && r.website && String(r.website).trim()) {
+      out.website = String(r.website).trim();
+      augmented = true;
+    }
+
+    const cmsRev = typeof doc.reviews === 'number' && Number.isFinite(doc.reviews) ? doc.reviews : 0;
+    const gRev =
+      typeof r.user_ratings_total === 'number' && Number.isFinite(r.user_ratings_total) ? r.user_ratings_total : 0;
+    if (gRev > 0 && cmsRev === 0) {
+      out.reviews = gRev;
+      augmented = true;
+      if (typeof r.rating === 'number' && Number.isFinite(r.rating)) {
+        out.rating = Math.round(r.rating * 10) / 10;
+      }
+    }
+
+    const cmsHl = doc.reviewHighlight && String(doc.reviewHighlight).trim();
+    if (!cmsHl && Array.isArray(r.reviews) && r.reviews[0] && r.reviews[0].text) {
+      let t = String(r.reviews[0].text).trim().replace(/\s+/g, ' ');
+      if (t.length > 200) t = t.slice(0, 197).trim() + '…';
+      out.reviewHighlight = t;
+      augmented = true;
+    }
+
+    const lat0 = doc.lat != null && Number.isFinite(+doc.lat) ? +doc.lat : null;
+    const lng0 = doc.lng != null && Number.isFinite(+doc.lng) ? +doc.lng : null;
+    if ((lat0 == null || lng0 == null) && r.geometry && r.geometry.location) {
+      const la = r.geometry.location.lat;
+      const lo = r.geometry.location.lng;
+      if (Number.isFinite(+la) && Number.isFinite(+lo)) {
+        out.lat = +la;
+        out.lng = +lo;
+        augmented = true;
+      }
+    }
+
+    return { doc: out, augmented };
+  } catch {
+    return { doc, augmented: false };
+  }
 }
 
 /**
