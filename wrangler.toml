@@ -40,8 +40,9 @@ SANITY_PROJECT_ID = "t0z5ndwm"
 SANITY_DATASET = "production"
 
 # Staging Worker (`npm run deploy` uses --env staging; same Sanity dataset as production).
-# Secrets (same as default, scoped to this Worker name):
+# Secrets (per-environment; set each once for studio-locater-staging):
 #   npx wrangler secret put GOOGLE_API_KEY --env staging
+#   npx wrangler secret put ANTHROPIC_API_KEY --env staging
 [env.staging]
 name = "studio-locater-staging"
 

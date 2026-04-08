@@ -1428,6 +1428,43 @@ function mergeSanityYelpGoogle(sanity, yelp, google) {
   return mergeSanityAndYelp(combined, yelp || []);
 }
 
+/** Match studio profile: Google Place Details fills review counts when list data had 0. */
+async function enrichStudiosPlaceReviewMeta() {
+  const needPids = [...new Set(
+    studios
+      .filter(s => {
+        const pid = s.placeId && String(s.placeId).trim();
+        if (!pid) return false;
+        const r = typeof s.reviews === 'number' && Number.isFinite(s.reviews) ? s.reviews : 0;
+        return r === 0;
+      })
+      .map(s => String(s.placeId).trim())
+  )].slice(0, 24);
+  if (!needPids.length) return;
+  try {
+    const res = await fetch('/api/place-meta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ placeIds: needPids }),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const meta = data.meta || {};
+    studios = studios.map(s => {
+      const pid = s.placeId && String(s.placeId).trim();
+      if (!pid || !meta[pid]) return s;
+      const m = meta[pid];
+      return {
+        ...s,
+        rating: m.rating != null ? m.rating : s.rating,
+        reviews: typeof m.reviews === 'number' ? m.reviews : s.reviews,
+      };
+    });
+  } catch (e) {
+    /* ignore */
+  }
+}
+
 async function loadStudiosNear(lat, lng, label, searchOpts = {}) {
   const myToken = ++studiosLoadToken;
   try {
@@ -1444,6 +1481,7 @@ async function loadStudiosNear(lat, lng, label, searchOpts = {}) {
     ]);
     if (myToken !== studiosLoadToken) return;
     studios = mergeSanityYelpGoogle(sanity, yelp, google).map(ensureStudioClasses);
+    await enrichStudiosPlaceReviewMeta();
   } catch (e) {
     if (myToken !== studiosLoadToken) return;
     studios = [];
@@ -1968,11 +2006,19 @@ function openClasses() {
 function trackSignupEvent() {
   const emailEl = document.getElementById('signupEmail');
   const classEl = document.getElementById('signupClassType');
+  const fnEl = document.getElementById('signupFirstName');
+  const lnEl = document.getElementById('signupLastName');
   const email = emailEl && emailEl.value ? String(emailEl.value).trim() : '';
   const classType = classEl && classEl.value ? String(classEl.value) : '';
+  const firstName = fnEl && fnEl.value ? String(fnEl.value).trim() : '';
+  const lastName = lnEl && lnEl.value ? String(lnEl.value).trim() : '';
+  const metadata = {};
+  if (classType) metadata.classType = classType;
+  if (firstName) metadata.firstName = firstName;
+  if (lastName) metadata.lastName = lastName;
   const payload = {
     source: 'homepage',
-    metadata: { classType: classType || undefined }
+    metadata: Object.keys(metadata).length ? metadata : undefined
   };
   if (email) payload.email = email;
   fetch('/api/track/signup', {

@@ -243,6 +243,9 @@
     /* ── Schedule form ─────────────────────────────────────────── */
     .schedule-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
     @media (max-width: 640px) { .schedule-grid { grid-template-columns: 1fr; } }
+    .sched-ai-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .sched-ai-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+    @media (max-width: 640px) { .sched-ai-opts { grid-template-columns: 1fr; } }
     .form-group { display: flex; flex-direction: column; gap: 7px; }
     .form-label { font-size: 11px; color: var(--plum-light); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
     .form-input, .form-textarea, .form-select-full {
@@ -348,6 +351,10 @@
     <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
     <span>Overview</span>
   </div>
+  <div class="nav-item" data-page="signups">
+    <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+    <span>Signups</span>
+  </div>
   <div class="nav-item" data-page="blogs">
     <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></span>
     <span>Blog Manager</span>
@@ -400,6 +407,25 @@
       <div class="card-title">Signups — Last 30 Days</div>
       <div class="chart-wrap">
         <canvas id="signupsChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- Signups -->
+  <section class="page" id="page-signups">
+    <div class="page-header">
+      <h2>Signups</h2>
+      <p>Registrations from the homepage signup flow. Email and name are shown when captured.</p>
+    </div>
+    <div class="blog-toolbar">
+      <input class="search-input" id="signup-search" type="text" placeholder="Search email, name, class, source…">
+    </div>
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <div id="signup-list-wrap">
+        <div class="empty-state">
+          <div class="empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C97E84" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+          <p>Loading signups…</p>
+        </div>
       </div>
     </div>
   </section>
@@ -466,8 +492,16 @@
 
       <div class="form-group" style="margin-bottom: 24px;">
         <label class="form-label">Topic Pool</label>
+        <div class="sched-ai-bar">
+          <button type="button" class="btn btn-secondary" id="sched-suggest-btn">Suggest topic lines</button>
+          <button type="button" class="btn btn-secondary" id="sched-refine-pool-btn">Improve topic list</button>
+        </div>
+        <div class="sched-ai-opts">
+          <input class="form-input" id="sched-topic-seed" type="text" placeholder="Optional theme when suggesting (e.g. New Year, summer)">
+          <input class="form-input" id="sched-ai-classes" type="text" placeholder="Optional class focus: yoga, Pilates, HIIT…">
+        </div>
         <textarea class="form-textarea" id="sched-topics" placeholder="Enter one topic per line. Claude rotates through these automatically.&#10;&#10;Examples:&#10;5 yoga poses perfect for beginners&#10;Why group fitness classes beat solo gym sessions&#10;How to choose the right fitness class for your goals&#10;Pilates vs yoga: which is right for you?&#10;Post-workout nutrition tips for faster recovery"></textarea>
-        <span style="font-size:12px; color:var(--plum-light); margin-top:6px; display:block;">One topic per line — Claude rotates through them in order.</span>
+        <span style="font-size:12px; color:var(--plum-light); margin-top:6px; display:block;">One topic per line — Claude rotates through them in order. Suggest adds AI lines (appended if you already have topics). Improve rewrites your whole list.</span>
       </div>
 
       <div class="toggle-row">
@@ -520,6 +554,16 @@
       <label class="form-label">Class types to reference (optional)</label>
       <input class="form-input" id="gen-classes" type="text" placeholder="e.g. yoga, HIIT, Pilates, spin, barre">
     </div>
+    <div class="toggle-row" style="border:none; padding: 12px 0 0;">
+      <label class="toggle">
+        <input type="checkbox" id="gen-include-quiz">
+        <span class="toggle-slider"></span>
+      </label>
+      <div>
+        <div class="toggle-label">Include an interactive quiz</div>
+        <div class="toggle-desc">Adds a "find your class" quiz at the end of the post to boost engagement.</div>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="gen-cancel">Cancel</button>
       <button class="btn btn-primary" id="gen-submit">Generate</button>
@@ -531,7 +575,7 @@
 <div id="toast"></div>
 
 <script>
-let blogPosts = [], signupsChart = null;
+let blogPosts = [], signupsChart = null, signupRows = [];
 
 function toast(msg, type = 'success') {
   const el = document.getElementById('toast');
@@ -582,7 +626,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
   });
 });
 function showPage(name) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(`page-${name}`).classList.add('active'); }
-function loadPage(name) { showPage(name); if (name==='overview') loadOverview(); if (name==='blogs') loadBlogs(); if (name==='schedule') loadSchedule(); }
+function loadPage(name) { showPage(name); if (name==='overview') loadOverview(); if (name==='signups') loadSignups(); if (name==='blogs') loadBlogs(); if (name==='schedule') loadSchedule(); }
 
 // Overview
 async function loadOverview() {
@@ -620,6 +664,54 @@ function renderSignupsChart(daily) {
   });
 }
 
+function parseSignupMeta(raw) {
+  if (!raw) return {};
+  try { return typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { return {}; }
+}
+function signupDisplayName(meta) {
+  const fn = (meta.firstName || '').trim();
+  const ln = (meta.lastName || '').trim();
+  if (fn || ln) return [fn, ln].filter(Boolean).join(' ');
+  return '';
+}
+
+async function loadSignups() {
+  try {
+    const data = await apiFetch('/api/admin/signups?limit=300');
+    if (!data) return;
+    signupRows = data.signups || [];
+    renderSignupList();
+  } catch (e) { toast(e.message, 'error'); }
+}
+function renderSignupList() {
+  const wrap = document.getElementById('signup-list-wrap');
+  const q = (document.getElementById('signup-search') && document.getElementById('signup-search').value || '').toLowerCase();
+  const rows = signupRows.filter(s => {
+    const meta = parseSignupMeta(s.metadata);
+    const name = signupDisplayName(meta);
+    const cls = (meta.classType || '').toString();
+    const hay = [s.source || '', s.email_address || '', name, cls, s.email || ''].join(' ').toLowerCase();
+    return !q || hay.includes(q);
+  });
+  const emptyIcon = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C97E84" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>`;
+  if (!signupRows.length) {
+    wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">${emptyIcon}</div><p>No signups recorded yet.</p></div>`;
+    return;
+  }
+  if (!rows.length) {
+    wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">${emptyIcon}</div><p>No rows match your search.</p></div>`;
+    return;
+  }
+  wrap.innerHTML = `<table class="blog-table"><thead><tr><th>Date</th><th>Email</th><th>Name</th><th>Class</th><th>Source</th></tr></thead><tbody>${rows.map(s => {
+    const meta = parseSignupMeta(s.metadata);
+    const name = signupDisplayName(meta) || '—';
+    const cls = escHtml((meta.classType || '').toString() || '—');
+    const em = s.email_address ? escHtml(s.email_address) : '<span style="color:var(--plum-light);font-size:12px;">Not stored</span>';
+    return `<tr><td>${fmtDate(s.created_at)}</td><td>${em}</td><td>${escHtml(name)}</td><td>${cls}</td><td>${escHtml(s.source || '—')}</td></tr>`;
+  }).join('')}</tbody></table>`;
+}
+document.getElementById('signup-search').addEventListener('input', renderSignupList);
+
 // Blog Manager
 async function loadBlogs() {
   try { const data=await apiFetch('/api/admin/blogs'); if(!data) return; blogPosts=data.posts||[]; renderBlogList(); }
@@ -645,17 +737,23 @@ document.getElementById('generate-btn').addEventListener('click', ()=>{
   document.getElementById('gen-prompt-chips').innerHTML = '';
   document.getElementById('gen-topic').focus();
 });
-document.getElementById('gen-cancel').addEventListener('click', ()=>document.getElementById('generate-modal').classList.add('hidden'));
-document.getElementById('generate-modal').addEventListener('click', e=>{ if(e.target===document.getElementById('generate-modal')) document.getElementById('generate-modal').classList.add('hidden'); });
+function closeGenerateModal(){
+  document.getElementById('generate-modal').classList.add('hidden');
+  document.getElementById('gen-include-quiz').checked=false;
+}
+document.getElementById('gen-cancel').addEventListener('click', closeGenerateModal);
+document.getElementById('generate-modal').addEventListener('click', e=>{ if(e.target===document.getElementById('generate-modal')) closeGenerateModal(); });
 
 document.getElementById('gen-submit').addEventListener('click', async ()=>{
   const topic=document.getElementById('gen-topic').value.trim(), classes=document.getElementById('gen-classes').value.trim();
+  const include_quiz=document.getElementById('gen-include-quiz').checked;
   if(!topic){toast('Please enter a topic.','error');return;}
   const btn=document.getElementById('gen-submit'); btn.disabled=true; btn.classList.add('btn-loading'); btn.textContent='';
   try {
-    const data=await apiFetch('/api/admin/blogs/generate',{method:'POST',body:JSON.stringify({topic,classes})}); if(!data) return;
+    const data=await apiFetch('/api/admin/blogs/generate',{method:'POST',body:JSON.stringify({topic,classes,include_quiz})}); if(!data) return;
     blogPosts.unshift(data.post); document.getElementById('generate-modal').classList.add('hidden');
     document.getElementById('gen-topic').value=''; document.getElementById('gen-classes').value='';
+    document.getElementById('gen-include-quiz').checked=false;
     toast('Post generated! Review it in the list below.'); renderBlogList();
   } catch(e){toast(e.message,'error');}
   finally{btn.disabled=false;btn.classList.remove('btn-loading');btn.textContent='Generate';}
@@ -726,6 +824,43 @@ async function loadSchedule() {
 }
 document.getElementById('sched-frequency').addEventListener('change', updateDayVisibility);
 function updateDayVisibility(){document.getElementById('sched-day-group').style.display=document.getElementById('sched-frequency').value==='daily'?'none':'';}
+
+document.getElementById('sched-suggest-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('sched-suggest-btn');
+  const seed = document.getElementById('sched-topic-seed').value.trim();
+  const classes = document.getElementById('sched-ai-classes').value.trim();
+  btn.disabled = true;
+  try {
+    const data = await apiFetch('/api/admin/blogs/suggest-prompts', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'schedule_list', seed, classes, count: 12 }),
+    });
+    if (!data || !data.topics || !data.topics.length) return;
+    const ta = document.getElementById('sched-topics');
+    const cur = ta.value.trim();
+    ta.value = cur ? cur + '\n' + data.topics.join('\n') : data.topics.join('\n');
+    toast('Suggested lines added to the pool. Save schedule when ready.');
+  } catch (e) { toast(e.message, 'error'); }
+  finally { btn.disabled = false; }
+});
+
+document.getElementById('sched-refine-pool-btn').addEventListener('click', async () => {
+  const raw = document.getElementById('sched-topics').value.trim();
+  if (!raw) { toast('Add some topic lines first, then Improve.', 'error'); return; }
+  const classes = document.getElementById('sched-ai-classes').value.trim();
+  const btn = document.getElementById('sched-refine-pool-btn');
+  btn.disabled = true;
+  try {
+    const data = await apiFetch('/api/admin/blogs/suggest-prompts', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'schedule_refine', text: raw, classes }),
+    });
+    if (!data || !data.topics || !data.topics.length) return;
+    document.getElementById('sched-topics').value = data.topics.join('\n');
+    toast('Topic list refined. Review and save schedule.');
+  } catch (e) { toast(e.message, 'error'); }
+  finally { btn.disabled = false; }
+});
 
 document.getElementById('save-schedule-btn').addEventListener('click', async ()=>{
   const btn=document.getElementById('save-schedule-btn'); btn.disabled=true;

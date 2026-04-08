@@ -31,6 +31,11 @@ app.get('/api/blog-posts', (_req, res) => {
   res.json({ posts: [] });
 });
 
+/** Local stub: review meta from Place Details only on Cloudflare Worker. */
+app.post('/api/place-meta', (_req, res) => {
+  res.json({ meta: {} });
+});
+
 app.get('/admin', (_req, res) => {
   res.sendFile(path.join(publicDir, 'admin.html'));
 });
