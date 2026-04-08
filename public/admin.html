@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Studio Locater — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blush:         #F9EAEA;
+      --blush-light:   #FDF6F6;
+      --rose:          #E8B4B8;
+      --rose-deep:     #C97E84;
+      --lavender:      #EDE5FA;
+      --lavender-deep: #B39DDB;
+      --gold:          #C9A96E;
+      --gold-light:    #F5E8C8;
+      --plum:          #3D2B3D;
+      --plum-mid:      #6B4C6B;
+      --plum-light:    #9E7E9E;
+      --off-white:     #FDF8F8;
+      --border:        #F0DCE0;
+      --shadow:        rgba(61,43,61,0.08);
+      --shadow-hover:  rgba(61,43,61,0.16);
+      --gradient:      linear-gradient(135deg, #C97E84, #B39DDB);
+      --radius:        12px;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--off-white);
+      color: var(--plum);
+      min-height: 100vh;
+      display: flex;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Auth overlay ──────────────────────────────────────────── */
+    #auth-overlay {
+      position: fixed; inset: 0;
+      background: linear-gradient(155deg,#FDF6F6 0%,#F9EAEA 30%,#EDE5FA 65%,#DDD0F5 100%);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100;
+    }
+    #auth-overlay.hidden { display: none; }
+    .auth-card {
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 52px 44px;
+      text-align: center;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 12px 48px var(--shadow);
+    }
+    .auth-logo {
+      width: 68px; height: 68px; border-radius: 50%;
+      background: var(--gradient);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 22px;
+      font-size: 30px;
+      box-shadow: 0 8px 28px rgba(201,126,132,0.38);
+    }
+    .auth-card h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px; font-weight: 600;
+      color: var(--plum); margin-bottom: 8px;
+    }
+    .auth-card .auth-sub {
+      font-size: 11px; color: var(--plum-light);
+      text-transform: uppercase; letter-spacing: .1em;
+      margin-bottom: 6px; font-weight: 600;
+    }
+    .auth-card p { color: var(--plum-light); font-size: 14px; margin-bottom: 32px; line-height: 1.6; }
+    .btn-google {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: #fff; color: var(--plum);
+      border: 1.5px solid var(--border); border-radius: 50px;
+      padding: 14px 30px; font-size: 15px; font-weight: 500;
+      cursor: pointer; text-decoration: none;
+      transition: all .2s;
+      box-shadow: 0 2px 14px var(--shadow);
+      font-family: 'DM Sans', sans-serif;
+    }
+    .btn-google:hover {
+      border-color: var(--rose);
+      box-shadow: 0 6px 24px var(--shadow-hover);
+      transform: translateY(-2px);
+    }
+    .btn-google svg { width: 20px; height: 20px; flex-shrink: 0; }
+    .auth-error {
+      color: var(--rose-deep); font-size: 13px; margin-top: 16px;
+      display: none; background: var(--blush);
+      padding: 10px 16px; border-radius: 10px;
+    }
+    .auth-error.visible { display: block; }
+
+    /* ── Sidebar ───────────────────────────────────────────────── */
+    #sidebar {
+      width: 240px; flex-shrink: 0;
+      background: #fff;
+      border-right: 1px solid var(--border);
+      padding: 28px 0;
+      display: flex; flex-direction: column;
+      min-height: 100vh;
+      box-shadow: 2px 0 20px var(--shadow);
+      position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    }
+    .sidebar-brand {
+      padding: 0 24px 28px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .brand-icon {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--gradient);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 17px; flex-shrink: 0;
+      box-shadow: 0 4px 14px rgba(201,126,132,0.3);
+    }
+    .brand-text .logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 15px; font-weight: 600; color: var(--plum);
+    }
+    .brand-text .sub {
+      font-size: 10px; color: var(--plum-light);
+      margin-top: 2px; text-transform: uppercase; letter-spacing: .08em;
+    }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 24px; cursor: pointer;
+      color: var(--plum-light); font-size: 14px; font-weight: 500;
+      border-left: 3px solid transparent;
+      transition: all .18s;
+    }
+    .nav-item:hover { color: var(--plum); background: var(--blush-light); }
+    .nav-item.active {
+      color: var(--rose-deep);
+      border-left-color: var(--rose-deep);
+      background: var(--blush);
+    }
+    .nav-item .icon { font-size: 17px; width: 22px; text-align: center; }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 20px 24px;
+      border-top: 1px solid var(--border);
+    }
+    .user-info { font-size: 12px; color: var(--plum-light); margin-bottom: 12px; word-break: break-all; }
+    .btn-logout {
+      width: 100%; padding: 9px; border-radius: 50px;
+      background: transparent; border: 1.5px solid var(--border);
+      color: var(--plum-light); font-size: 13px; cursor: pointer;
+      font-family: 'DM Sans', sans-serif; transition: all .18s;
+    }
+    .btn-logout:hover { border-color: var(--rose-deep); color: var(--rose-deep); background: var(--blush); }
+
+    /* ── Main content ──────────────────────────────────────────── */
+    #main { flex: 1; padding: 40px; overflow-y: auto; background: var(--off-white); }
+    .page { display: none; }
+    .page.active { display: block; }
+    .page-header { margin-bottom: 32px; }
+    .page-header h2 { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 600; color: var(--plum); }
+    .page-header p { color: var(--plum-light); font-size: 14px; margin-top: 6px; }
+
+    /* ── Cards ─────────────────────────────────────────────────── */
+    .card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; box-shadow: 0 2px 16px var(--shadow); }
+    .card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--plum-light); margin-bottom: 20px; }
+
+    /* ── Stat grid ──────────────────────────────────────────────── */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; box-shadow: 0 2px 12px var(--shadow); transition: box-shadow .2s, transform .2s; }
+    .stat-card:hover { box-shadow: 0 6px 24px var(--shadow-hover); transform: translateY(-2px); }
+    .stat-card.rose-accent     { border-top: 3px solid var(--rose-deep); }
+    .stat-card.lavender-accent { border-top: 3px solid var(--lavender-deep); }
+    .stat-label { font-size: 11px; color: var(--plum-light); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+    .stat-value { font-family: 'Playfair Display', serif; font-size: 38px; font-weight: 700; line-height: 1; color: var(--plum); }
+    .stat-delta { font-size: 12px; margin-top: 6px; }
+    .stat-delta.up   { color: #6B9A5E; }
+    .stat-delta.down { color: var(--rose-deep); }
+
+    /* ── Chart ─────────────────────────────────────────────────── */
+    .chart-wrap { position: relative; height: 240px; }
+
+    /* ── Buttons ───────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 22px; border-radius: 50px;
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      border: none; transition: all .2s; font-family: 'DM Sans', sans-serif;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .btn-primary { background: var(--gradient); color: #fff; box-shadow: 0 4px 16px rgba(201,126,132,.35); }
+    .btn-primary:hover { box-shadow: 0 6px 24px rgba(201,126,132,.45); transform: translateY(-1px); }
+    .btn-secondary { background: #fff; color: var(--plum); border: 1.5px solid var(--border); }
+    .btn-secondary:hover { border-color: var(--rose); transform: translateY(-1px); }
+    .btn-success { background: #EEF7EC; color: #4E8944; border: 1.5px solid #C5E0C0; }
+    .btn-danger  { background: var(--blush); color: var(--rose-deep); border: 1.5px solid var(--rose); }
+    .btn-sm { padding: 6px 14px; font-size: 12px; }
+    .btn-loading::after { content: ''; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: spin .65s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Blog toolbar ──────────────────────────────────────────── */
+    .blog-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .search-input {
+      flex: 1; min-width: 180px;
+      background: #fff; border: 1.5px solid var(--border);
+      border-radius: 50px; padding: 9px 18px;
+      color: var(--plum); font-size: 13px; font-family: 'DM Sans', sans-serif;
+    }
+    .search-input:focus { outline: none; border-color: var(--rose); }
+    .search-input::placeholder { color: var(--plum-light); }
+    .form-select {
+      background: #fff; border: 1.5px solid var(--border);
+      border-radius: 50px; padding: 9px 16px;
+      color: var(--plum); font-size: 13px; font-family: 'DM Sans', sans-serif; cursor: pointer;
+    }
+    .form-select:focus { outline: none; border-color: var(--rose); }
+
+    /* ── Blog table ────────────────────────────────────────────── */
+    .blog-table { width: 100%; border-collapse: collapse; }
+    .blog-table th { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--plum-light); font-weight: 600; padding: 12px 16px; border-bottom: 1px solid var(--border); text-align: left; background: var(--blush-light); }
+    .blog-table td { padding: 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+    .blog-table tr:last-child td { border-bottom: none; }
+    .blog-table tr:hover td { background: var(--blush-light); }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: .03em; }
+    .badge-draft     { background: var(--lavender); color: var(--plum-mid); }
+    .badge-published { background: #EEF7EC; color: #4E8944; }
+    .blog-title-cell { font-weight: 600; max-width: 280px; color: var(--plum); }
+    .blog-excerpt    { font-size: 12px; color: var(--plum-light); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+    .actions-cell { white-space: nowrap; }
+
+    /* ── Schedule form ─────────────────────────────────────────── */
+    .schedule-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    @media (max-width: 640px) { .schedule-grid { grid-template-columns: 1fr; } }
+    .form-group { display: flex; flex-direction: column; gap: 7px; }
+    .form-label { font-size: 11px; color: var(--plum-light); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+    .form-input, .form-textarea, .form-select-full {
+      background: #fff; border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 11px 14px;
+      color: var(--plum); font-size: 14px; font-family: 'DM Sans', sans-serif;
+    }
+    .form-input:focus, .form-textarea:focus, .form-select-full:focus { outline: none; border-color: var(--rose); box-shadow: 0 0 0 3px rgba(201,126,132,0.1); }
+    .form-textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+
+    .toggle-row { display: flex; align-items: center; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+    .toggle-row:last-of-type { border-bottom: none; }
+    .toggle { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: var(--border); border-radius: 26px; cursor: pointer; transition: background .2s; }
+    .toggle-slider::before { content: ''; position: absolute; width: 20px; height: 20px; border-radius: 50%; background: #fff; top: 3px; left: 3px; transition: transform .2s; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+    .toggle input:checked + .toggle-slider { background: var(--rose-deep); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(20px); }
+    .toggle-label { font-size: 14px; font-weight: 500; color: var(--plum); }
+    .toggle-desc  { font-size: 12px; color: var(--plum-light); margin-top: 2px; }
+
+    /* ── Modal ─────────────────────────────────────────────────── */
+    .modal-bg { position: fixed; inset: 0; background: rgba(61,43,61,.35); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 200; }
+    .modal-bg.hidden { display: none; }
+    .modal { background: #fff; border: 1px solid var(--border); border-radius: 22px; padding: 36px; width: 100%; max-width: 520px; margin: 16px; box-shadow: 0 24px 64px var(--shadow-hover); }
+    .modal h3 { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; margin-bottom: 6px; color: var(--plum); }
+    .modal p  { color: var(--plum-light); font-size: 14px; margin-bottom: 22px; line-height: 1.6; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+    /* ── Toast ─────────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 28px; right: 28px;
+      background: #fff; border: 1px solid var(--border);
+      border-radius: 50px; padding: 12px 24px;
+      font-size: 13px; font-weight: 500; color: var(--plum);
+      box-shadow: 0 8px 32px var(--shadow-hover);
+      opacity: 0; transform: translateY(8px); transition: all .25s; z-index: 999;
+      font-family: 'DM Sans', sans-serif;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.success { border-color: var(--rose); color: var(--rose-deep); background: var(--blush-light); }
+    #toast.error   { border-color: #f5a5a5; color: #b94a4a; background: #fff5f5; }
+
+    /* ── Empty state ───────────────────────────────────────────── */
+    .empty-state { text-align: center; padding: 56px 20px; color: var(--plum-light); }
+    .empty-icon { width: 72px; height: 72px; border-radius: 50%; background: var(--blush); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 28px; }
+    .empty-state p { font-size: 14px; }
+
+    /* ── Responsive ────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      #sidebar { width: 68px; }
+      .brand-text, .nav-item span, .user-info { display: none; }
+      .nav-item { justify-content: center; padding: 14px; }
+      #main { padding: 20px 16px; }
+      .sidebar-brand { justify-content: center; padding: 0 0 20px; }
+      .sidebar-footer { padding: 16px 8px; }
+      .btn-logout { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Auth overlay -->
+<div id="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo">🏋️</div>
+    <div class="auth-sub">Admin Portal</div>
+    <h1>Studio Locater</h1>
+    <p>Sign in with your authorized Google account to access the dashboard.</p>
+    <a id="google-signin-btn" class="btn-google" href="/auth/google">
+      <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.7 2.5 30.2 0 24 0 14.8 0 7 5.4 3.2 13.3l7.8 6c1.8-5.4 6.9-9.8 13-9.8z"/><path fill="#4285F4" d="M46.6 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.4 5.7c4.3-4 6.8-9.9 6.8-16.9z"/><path fill="#FBBC05" d="M11 28.6c-.5-1.5-.8-3.1-.8-4.6s.3-3.1.8-4.6L3.2 13.3C1.2 17 0 21.4 0 24s1.2 7 3.2 10.7l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.4-5.7c-2 1.4-4.6 2.2-7.8 2.2-6.1 0-11.2-4.1-13-9.8l-7.8 6c3.8 7.6 11.5 12.8 20.8 12.8z"/></svg>
+      Continue with Google
+    </a>
+    <p id="auth-error" class="auth-error"></p>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<nav id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">🏋️</div>
+    <div class="brand-text">
+      <div class="logo">Studio Locater</div>
+      <div class="sub">Admin</div>
+    </div>
+  </div>
+
+  <div class="nav-item active" data-page="overview">
+    <span class="icon">📊</span>
+    <span>Overview</span>
+  </div>
+  <div class="nav-item" data-page="blogs">
+    <span class="icon">✍️</span>
+    <span>Blog Manager</span>
+  </div>
+  <div class="nav-item" data-page="schedule">
+    <span class="icon">⏰</span>
+    <span>Auto Schedule</span>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="user-info" id="user-email">—</div>
+    <button class="btn-logout" id="logout-btn">Sign out</button>
+  </div>
+</nav>
+
+<!-- Main -->
+<main id="main">
+
+  <!-- Overview -->
+  <section class="page active" id="page-overview">
+    <div class="page-header">
+      <h2>Overview</h2>
+      <p>User signups and site activity at a glance.</p>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card rose-accent">
+        <div class="stat-label">Total Signups</div>
+        <div class="stat-value" id="stat-total">—</div>
+        <div class="stat-delta" id="stat-total-delta"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Last 7 Days</div>
+        <div class="stat-value" id="stat-week">—</div>
+        <div class="stat-delta" id="stat-week-delta"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Last 30 Days</div>
+        <div class="stat-value" id="stat-month">—</div>
+        <div class="stat-delta" id="stat-month-delta"></div>
+      </div>
+      <div class="stat-card lavender-accent">
+        <div class="stat-label">Published Posts</div>
+        <div class="stat-value" id="stat-posts">—</div>
+        <div class="stat-delta" id="stat-posts-delta"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Signups — Last 30 Days</div>
+      <div class="chart-wrap">
+        <canvas id="signupsChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- Blog Manager -->
+  <section class="page" id="page-blogs">
+    <div class="page-header">
+      <h2>Blog Manager</h2>
+      <p>AI-generated posts about fitness tips and class news.</p>
+    </div>
+
+    <div class="blog-toolbar">
+      <button class="btn btn-primary" id="generate-btn">✨ Generate Post</button>
+      <input class="search-input" id="blog-search" type="text" placeholder="Search posts…">
+      <select class="form-select" id="blog-filter">
+        <option value="all">All Posts</option>
+        <option value="draft">Drafts</option>
+        <option value="published">Published</option>
+      </select>
+    </div>
+
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <div id="blog-list-wrap">
+        <div class="empty-state">
+          <div class="empty-icon">📝</div>
+          <p>No posts yet. Click "Generate Post" to create your first one.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Auto Schedule -->
+  <section class="page" id="page-schedule">
+    <div class="page-header">
+      <h2>Auto Schedule</h2>
+      <p>Configure Claude to automatically write blog posts for you on a recurring schedule.</p>
+    </div>
+
+    <div class="card" style="margin-bottom: 20px;">
+      <div class="card-title">Schedule Settings</div>
+
+      <div class="schedule-grid">
+        <div class="form-group">
+          <label class="form-label">Frequency</label>
+          <select class="form-select-full" id="sched-frequency">
+            <option value="daily">Daily</option>
+            <option value="weekly" selected>Weekly</option>
+            <option value="biweekly">Every 2 Weeks</option>
+          </select>
+        </div>
+        <div class="form-group" id="sched-day-group">
+          <label class="form-label">Day of Week</label>
+          <select class="form-select-full" id="sched-day">
+            <option value="1" selected>Monday</option>
+            <option value="2">Tuesday</option>
+            <option value="3">Wednesday</option>
+            <option value="4">Thursday</option>
+            <option value="5">Friday</option>
+            <option value="6">Saturday</option>
+            <option value="0">Sunday</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 24px;">
+        <label class="form-label">Topic Pool</label>
+        <textarea class="form-textarea" id="sched-topics" placeholder="Enter one topic per line. Claude rotates through these automatically.&#10;&#10;Examples:&#10;5 yoga poses perfect for beginners&#10;Why group fitness classes beat solo gym sessions&#10;How to choose the right fitness class for your goals&#10;Pilates vs yoga: which is right for you?&#10;Post-workout nutrition tips for faster recovery"></textarea>
+        <span style="font-size:12px; color:var(--plum-light); margin-top:6px; display:block;">One topic per line — Claude rotates through them in order.</span>
+      </div>
+
+      <div class="toggle-row">
+        <label class="toggle">
+          <input type="checkbox" id="sched-autopublish">
+          <span class="toggle-slider"></span>
+        </label>
+        <div>
+          <div class="toggle-label">Auto-publish posts</div>
+          <div class="toggle-desc">When off, new posts are saved as drafts for your review first.</div>
+        </div>
+      </div>
+
+      <div class="toggle-row">
+        <label class="toggle">
+          <input type="checkbox" id="sched-active" checked>
+          <span class="toggle-slider"></span>
+        </label>
+        <div>
+          <div class="toggle-label">Schedule active</div>
+          <div class="toggle-desc">Pause auto-generation at any time without losing your settings.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:14px; align-items:center;">
+      <button class="btn btn-primary" id="save-schedule-btn">Save Schedule</button>
+      <span id="schedule-status" style="font-size:13px; color:var(--plum-light);"></span>
+    </div>
+  </section>
+
+</main>
+
+<!-- Generate modal -->
+<div class="modal-bg hidden" id="generate-modal">
+  <div class="modal">
+    <h3>Generate a Blog Post</h3>
+    <p>Describe what you'd like Claude to write about. The more specific, the better the result.</p>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label class="form-label">Topic / Prompt</label>
+      <textarea class="form-textarea" id="gen-topic" placeholder="e.g. The top 5 benefits of joining a group fitness class — covering motivation, accountability, variety, cost, and social connection." style="min-height:110px;"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Class types to reference (optional)</label>
+      <input class="form-input" id="gen-classes" type="text" placeholder="e.g. yoga, HIIT, Pilates, spin, barre">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="gen-cancel">Cancel</button>
+      <button class="btn btn-primary" id="gen-submit">✨ Generate</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+let blogPosts = [], signupsChart = null;
+
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = `show ${type}`;
+  clearTimeout(el._t); el._t = setTimeout(() => { el.className = ''; }, 3200);
+}
+
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(path, { credentials: 'include', headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) }, ...opts });
+  if (res.status === 401) { showAuth(); return null; }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+function fmt(n) { return n == null ? '—' : n.toLocaleString(); }
+function fmtDate(ts) { if (!ts) return '—'; return new Date(ts * 1000).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }); }
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Auth
+function showAuth() {
+  document.getElementById('auth-overlay').classList.remove('hidden');
+  if (new URLSearchParams(window.location.search).get('error')) {
+    const e = document.getElementById('auth-error');
+    e.textContent = 'Access denied. Please sign in with an authorized account.';
+    e.classList.add('visible');
+  }
+}
+function hideAuth() { document.getElementById('auth-overlay').classList.add('hidden'); }
+
+async function checkAuth() {
+  try {
+    const data = await apiFetch('/api/admin/me');
+    if (!data) return;
+    document.getElementById('user-email').textContent = data.email;
+    hideAuth(); loadPage('overview');
+  } catch { showAuth(); }
+}
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  await fetch('/auth/logout', { method: 'POST', credentials: 'include' }); showAuth();
+});
+
+// Nav
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    item.classList.add('active'); loadPage(item.dataset.page);
+  });
+});
+function showPage(name) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(`page-${name}`).classList.add('active'); }
+function loadPage(name) { showPage(name); if (name==='overview') loadOverview(); if (name==='blogs') loadBlogs(); if (name==='schedule') loadSchedule(); }
+
+// Overview
+async function loadOverview() {
+  try {
+    const data = await apiFetch('/api/admin/stats'); if (!data) return;
+    document.getElementById('stat-total').textContent = fmt(data.total);
+    document.getElementById('stat-week').textContent  = fmt(data.last7);
+    document.getElementById('stat-month').textContent = fmt(data.last30);
+    document.getElementById('stat-posts').textContent = fmt(data.published_posts);
+    const d = (data.last7||0) - (data.prev7||0), el = document.getElementById('stat-week-delta');
+    if (d !== 0) { el.textContent = (d>0?'▲ ':'▼ ')+Math.abs(d)+' vs prev week'; el.className='stat-delta '+(d>0?'up':'down'); }
+    renderSignupsChart(data.daily || []);
+  } catch(e) { console.error(e); }
+}
+
+function renderSignupsChart(daily) {
+  const ctx = document.getElementById('signupsChart').getContext('2d');
+  if (signupsChart) signupsChart.destroy();
+  const labels=[], counts=[];
+  for (let i=29;i>=0;i--) {
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const key=d.toISOString().slice(0,10);
+    labels.push(i===0?'Today':key.slice(5));
+    const m=daily.find(r=>r.date===key); counts.push(m?m.count:0);
+  }
+  signupsChart = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'Signups', data:counts, backgroundColor:'rgba(232,180,184,0.6)', borderColor:'#C97E84', borderWidth:1, borderRadius:5 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ ticks:{ color:'#9E7E9E', font:{ size:11, family:'DM Sans' }, maxTicksLimit:10 }, grid:{ color:'rgba(240,220,224,0.5)' } },
+        y:{ ticks:{ color:'#9E7E9E', font:{ size:11, family:'DM Sans' }, stepSize:1 }, grid:{ color:'rgba(240,220,224,0.5)' }, beginAtZero:true }
+      }
+    }
+  });
+}
+
+// Blog Manager
+async function loadBlogs() {
+  try { const data=await apiFetch('/api/admin/blogs'); if(!data) return; blogPosts=data.posts||[]; renderBlogList(); }
+  catch(e) { toast(e.message,'error'); }
+}
+function renderBlogList() {
+  const wrap=document.getElementById('blog-list-wrap'), q=document.getElementById('blog-search').value.toLowerCase(), f=document.getElementById('blog-filter').value;
+  const posts=blogPosts.filter(p=>(f==='all'||p.status===f)&&(!q||p.title.toLowerCase().includes(q)||(p.topic||'').toLowerCase().includes(q)));
+  if (!posts.length) { wrap.innerHTML=`<div class="empty-state"><div class="empty-icon">📝</div><p>${blogPosts.length?'No posts match your filter.':'No posts yet. Click "Generate Post" to create your first one.'}</p></div>`; return; }
+  wrap.innerHTML=`<table class="blog-table"><thead><tr><th>Title</th><th>Status</th><th>Created</th><th>Published</th><th>Actions</th></tr></thead><tbody>${posts.map(p=>`<tr><td class="blog-title-cell"><div>${escHtml(p.title)}</div><div class="blog-excerpt">${escHtml(p.excerpt||p.topic||'')}</div></td><td><span class="badge badge-${p.status}">${p.status}</span></td><td>${fmtDate(p.created_at)}</td><td>${fmtDate(p.published_at)}</td><td class="actions-cell">${p.status==='draft'?`<button class="btn btn-success btn-sm" onclick="publishPost(${p.id})">Publish</button>`:`<button class="btn btn-secondary btn-sm" onclick="unpublishPost(${p.id})">Unpublish</button>`}<a href="/blog/${escHtml(p.slug)}" target="_blank" class="btn btn-secondary btn-sm" style="margin-left:6px;text-decoration:none;">View</a><button class="btn btn-danger btn-sm" style="margin-left:6px;" onclick="deletePost(${p.id})">Delete</button></td></tr>`).join('')}</tbody></table>`;
+}
+document.getElementById('blog-search').addEventListener('input', renderBlogList);
+document.getElementById('blog-filter').addEventListener('change', renderBlogList);
+
+async function publishPost(id) { try { await apiFetch(`/api/admin/blogs/${id}`,{method:'PATCH',body:JSON.stringify({status:'published'})}); const p=blogPosts.find(p=>p.id===id); if(p){p.status='published';p.published_at=Math.floor(Date.now()/1000);} renderBlogList(); toast('Post published!'); } catch(e){toast(e.message,'error');} }
+async function unpublishPost(id) { try { await apiFetch(`/api/admin/blogs/${id}`,{method:'PATCH',body:JSON.stringify({status:'draft'})}); const p=blogPosts.find(p=>p.id===id); if(p){p.status='draft';p.published_at=null;} renderBlogList(); toast('Post moved back to draft.'); } catch(e){toast(e.message,'error');} }
+async function deletePost(id) { if(!confirm('Delete this post? This cannot be undone.')) return; try { await apiFetch(`/api/admin/blogs/${id}`,{method:'DELETE'}); blogPosts=blogPosts.filter(p=>p.id!==id); renderBlogList(); toast('Post deleted.'); } catch(e){toast(e.message,'error');} }
+
+document.getElementById('generate-btn').addEventListener('click', ()=>{ document.getElementById('generate-modal').classList.remove('hidden'); document.getElementById('gen-topic').focus(); });
+document.getElementById('gen-cancel').addEventListener('click', ()=>document.getElementById('generate-modal').classList.add('hidden'));
+document.getElementById('generate-modal').addEventListener('click', e=>{ if(e.target===document.getElementById('generate-modal')) document.getElementById('generate-modal').classList.add('hidden'); });
+
+document.getElementById('gen-submit').addEventListener('click', async ()=>{
+  const topic=document.getElementById('gen-topic').value.trim(), classes=document.getElementById('gen-classes').value.trim();
+  if(!topic){toast('Please enter a topic.','error');return;}
+  const btn=document.getElementById('gen-submit'); btn.disabled=true; btn.classList.add('btn-loading'); btn.textContent='';
+  try {
+    const data=await apiFetch('/api/admin/blogs/generate',{method:'POST',body:JSON.stringify({topic,classes})}); if(!data) return;
+    blogPosts.unshift(data.post); document.getElementById('generate-modal').classList.add('hidden');
+    document.getElementById('gen-topic').value=''; document.getElementById('gen-classes').value='';
+    toast('Post generated! Review it in the list below.'); renderBlogList();
+  } catch(e){toast(e.message,'error');}
+  finally{btn.disabled=false;btn.classList.remove('btn-loading');btn.textContent='✨ Generate';}
+});
+
+// Schedule
+async function loadSchedule() {
+  try {
+    const data=await apiFetch('/api/admin/schedule'); if(!data||!data.schedule) return; const s=data.schedule;
+    document.getElementById('sched-frequency').value=s.frequency||'weekly';
+    document.getElementById('sched-day').value=s.day_of_week??1;
+    document.getElementById('sched-autopublish').checked=!!s.auto_publish;
+    document.getElementById('sched-active').checked=s.active!==0;
+    document.getElementById('sched-topics').value=JSON.parse(s.topic_pool||'[]').join('\n');
+    updateDayVisibility();
+    if(s.next_run_at) document.getElementById('schedule-status').textContent=`Next run: ${fmtDate(s.next_run_at)}`;
+  } catch(e){console.error(e);}
+}
+document.getElementById('sched-frequency').addEventListener('change', updateDayVisibility);
+function updateDayVisibility(){document.getElementById('sched-day-group').style.display=document.getElementById('sched-frequency').value==='daily'?'none':'';}
+
+document.getElementById('save-schedule-btn').addEventListener('click', async ()=>{
+  const btn=document.getElementById('save-schedule-btn'); btn.disabled=true;
+  const topics=document.getElementById('sched-topics').value.trim().split('\n').map(t=>t.trim()).filter(Boolean);
+  if(!topics.length){toast('Please add at least one topic.','error');btn.disabled=false;return;}
+  try {
+    await apiFetch('/api/admin/schedule',{method:'POST',body:JSON.stringify({topic_pool:topics,frequency:document.getElementById('sched-frequency').value,day_of_week:parseInt(document.getElementById('sched-day').value),auto_publish:document.getElementById('sched-autopublish').checked?1:0,active:document.getElementById('sched-active').checked?1:0})});
+    toast('Schedule saved!'); document.getElementById('schedule-status').textContent='Saved ✓';
+  } catch(e){toast(e.message,'error');}
+  finally{btn.disabled=false;}
+});
+
+checkAuth();
+</script>
+</body>
+</html>
