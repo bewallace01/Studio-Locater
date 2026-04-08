@@ -1,6 +1,8 @@
 import {defineField, defineType} from 'sanity'
 import {GeopointGeocodeInput} from '../components/GeopointGeocodeInput.jsx'
 import {PlaceIdGoogleInput} from '../components/PlaceIdGoogleInput.jsx'
+import {StudioSlugInput} from '../components/StudioSlugInput.jsx'
+import {slugifyStudio} from '../lib/slugifyStudio.js'
 
 export const studio = defineType({
   name: 'studio',
@@ -17,13 +19,26 @@ export const studio = defineType({
       name: 'slug',
       title: 'Slug',
       type: 'slug',
-      options: {source: 'name', maxLength: 96}
+      components: {input: StudioSlugInput},
+      options: {
+        source: 'name',
+        maxLength: 96,
+        slugify: (input) => slugifyStudio(input)
+      },
+      description:
+        'Public URL: /studios/your-slug. Filled automatically from Name when empty; change only if you need a custom URL.'
     }),
     defineField({
       name: 'description',
       title: 'Description',
       type: 'text',
       rows: 3
+    }),
+    defineField({
+      name: 'website',
+      title: 'Website',
+      type: 'url',
+      description: 'Official studio site (shown as “Visit website” on cards and map when set).'
     }),
     defineField({
       name: 'cardImage',

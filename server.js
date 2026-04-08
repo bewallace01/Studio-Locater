@@ -4,18 +4,61 @@
  *
  * Run: npm install && cp .env.example .env && npm start
  */
-require('dotenv').config();
 const path = require('path');
+require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, 'studio', '.env') });
 const express = require('express');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3040;
 const YELP_KEY = process.env.YELP_API_KEY;
+const SANITY_PROJECT_ID =
+  process.env.SANITY_STUDIO_PROJECT_ID || process.env.SANITY_PROJECT_ID || 't0z5ndwm';
+const SANITY_DATASET = process.env.SANITY_STUDIO_DATASET || process.env.SANITY_DATASET || 'production';
 
 const publicDir = path.join(__dirname, 'public');
 app.get('/', (_req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
 });
+
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const { fetchAllStudioSlugs, buildSitemapXml } = await import(
+      path.join(__dirname, 'studio-detail-page.mjs')
+    );
+    const slugs = await fetchAllStudioSlugs(SANITY_PROJECT_ID, SANITY_DATASET);
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    const origin = `${proto}://${req.get('host') || 'localhost'}`;
+    res.type('application/xml').send(buildSitemapXml(origin, slugs));
+  } catch (e) {
+    console.error(e);
+    res.status(500).type('application/xml').send('<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"/>');
+  }
+});
+
+app.get('/studios/:slug', async (req, res) => {
+  try {
+    const { fetchStudioBySlug, buildStudioDetailHtml, buildStudioNotFoundHtml } = await import(
+      path.join(__dirname, 'studio-detail-page.mjs')
+    );
+    const slug = String(req.params.slug || '').trim();
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host') || 'localhost';
+    const origin = `${proto}://${host}`;
+    const canonicalUrl = `${origin}${req.path.endsWith('/') ? req.path.slice(0, -1) : req.path}`;
+
+    const doc = await fetchStudioBySlug(slug, SANITY_PROJECT_ID, SANITY_DATASET);
+    if (!doc) {
+      res.status(404).type('html').send(buildStudioNotFoundHtml(`${origin}/`));
+      return;
+    }
+    res.type('html').send(buildStudioDetailHtml(doc, { canonicalUrl }));
+  } catch (e) {
+    console.error(e);
+    res.status(500).type('html').send('Server error');
+  }
+});
+
 app.use(express.static(publicDir));
 
 function makePlaceholderClasses() {

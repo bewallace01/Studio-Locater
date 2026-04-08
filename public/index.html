@@ -9,6 +9,7 @@
   <!-- Google Places + merged Sanity (Cloudflare Worker). Set to your Worker URL; leave empty to skip. -->
   <meta name="search-api-base" content="https://studio-locater-api.wallacebailey32.workers.dev">
   <title>Studio Locater — Find Your Studio</title>
+  <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -438,6 +439,8 @@
     .card-rating .rev { color:var(--plum-light);font-weight:400;font-size:12px; }
     .card-price { font-size:13px;font-weight:600;color:var(--rose-deep); }
     .card-name { font-family:'Playfair Display',serif;font-size:17px;font-weight:600;color:var(--plum);margin-bottom:5px;line-height:1.3; }
+    .card-name .card-title-link { color:inherit;text-decoration:none;border-bottom:1px solid transparent;transition:color .2s,border-color .2s; }
+    .card-name .card-title-link:hover { color:var(--rose-deep);border-bottom-color:rgba(201,126,132,.45); }
     .card-addr { font-size:12px;color:var(--plum-light);margin-bottom:13px;display:flex;align-items:center;gap:4px; }
     .card-addr i { font-size:10px;color:var(--rose); }
     .card-yelp { font-size:11px;margin:-8px 0 10px; }
@@ -478,6 +481,8 @@
     .map-popup { padding:16px 18px;min-width:210px; }
     .mp-thumb { width:100%;height:88px;object-fit:cover;border-radius:12px;margin-bottom:10px;display:block; }
     .mp-name { font-family:'Playfair Display',serif;font-size:15px;font-weight:600;color:var(--plum);margin-bottom:5px; }
+    .mp-name-link { color:inherit;text-decoration:none;border-bottom:1px solid transparent;transition:border-color .2s,color .2s; }
+    .mp-name-link:hover { color:var(--rose-deep);border-bottom-color:rgba(201,126,132,.45); }
     .mp-row { display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--plum-mid);margin-bottom:9px; }
     .mp-row i { color:var(--gold);font-size:11px; }
     .mp-tags { display:flex;gap:4px;flex-wrap:wrap; }
@@ -1024,6 +1029,8 @@ function ensureStudioClasses(s) {
   if (!Array.isArray(s.vibeTags)) s.vibeTags = [];
   if (s.experienceLevel == null) s.experienceLevel = '';
   if (s.classTips == null) s.classTips = '';
+  if (s.websiteUrl == null) s.websiteUrl = '';
+  if (s.slug == null) s.slug = '';
   return s;
 }
 
@@ -1090,6 +1097,11 @@ function sanityDocToStudio(d, idx) {
     experienceLevel: d.experienceLevel && String(d.experienceLevel).trim() ? String(d.experienceLevel).trim() : '',
     vibeTags: Array.isArray(d.vibeTags) ? d.vibeTags.filter(Boolean) : [],
     classTips: d.classTips && String(d.classTips).trim() ? String(d.classTips).trim() : '',
+    websiteUrl: d.website && String(d.website).trim() ? normalizeExternalUrl(d.website) : '',
+    slug:
+      (d.slugCurrent && String(d.slugCurrent).trim()) ||
+      (d.slug && d.slug.current && String(d.slug.current).trim()) ||
+      '',
     _source: 'sanity'
   };
 }
@@ -1151,8 +1163,9 @@ async function fetchSanityStudios(userLat, userLng, opts = {}) {
   const sortLng = Number.isFinite(+userLng) ? +userLng : 0;
 
   const q = `*[_type == "studio" && (defined(address) || defined(location))] | order(_updatedAt desc) [0...500] {
-    _id, name, slug, placeId, address, tags, rating, reviews, priceTier, featured, badge, description, reviewHighlight,
+    _id, name, placeId, address, tags, rating, reviews, priceTier, featured, badge, description, website, reviewHighlight,
     experienceLevel, vibeTags, classTips,
+    "slugCurrent": slug.current,
     "lat": location.lat, "lng": location.lng,
     "cardImageUrl": cardImage.asset->url
   }`;
@@ -1207,6 +1220,15 @@ function escapeHtml(s) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+/** Safe href for user-entered URLs (add https if missing). */
+function normalizeExternalUrl(href) {
+  const t = String(href || '').trim();
+  if (!t) return '';
+  if (/^https?:\/\//i.test(t)) return t;
+  if (/^\/\//.test(t)) return 'https:' + t;
+  return 'https://' + t;
 }
 
 /** Prefer highlight, then description; trim for card. */
@@ -1300,6 +1322,9 @@ function googleMergedRowToStudio(row, idx) {
     experienceLevel: row.experienceLevel && String(row.experienceLevel).trim() ? String(row.experienceLevel).trim() : '',
     vibeTags: Array.isArray(row.vibeTags) ? row.vibeTags.filter(Boolean) : [],
     classTips: row.classTips && String(row.classTips).trim() ? String(row.classTips).trim() : '',
+    websiteUrl:
+      row.website != null && String(row.website).trim() ? normalizeExternalUrl(row.website) : '',
+    slug: row.slug != null && String(row.slug).trim() ? String(row.slug).trim() : '',
     _source: 'google'
   };
 }
@@ -1444,10 +1469,11 @@ function buildMapMarkers() {
       .addTo(map)
       .bindPopup(`<div class="map-popup">
         ${s.imageUrl ? `<img class="mp-thumb" src="${escapeAttr(s.imageUrl)}" alt="">` : ''}
-        <div class="mp-name">${escapeHtml(s.name)}</div>
+        <div class="mp-name">${s.slug ? `<a class="mp-name-link" href="/studios/${encodeURIComponent(s.slug)}">${escapeHtml(s.name)}</a>` : escapeHtml(s.name)}</div>
         ${(s.experienceLevel && experienceLevelLabel(s.experienceLevel)) || (s.vibeTags && s.vibeTags.length) ? `<div class="mp-vibes" style="font-size:11px;color:var(--plum-mid);margin-bottom:8px;line-height:1.4">${s.experienceLevel && experienceLevelLabel(s.experienceLevel) ? `<strong style="color:var(--plum)">${escapeHtml(experienceLevelLabel(s.experienceLevel))}</strong>` : ''}${s.experienceLevel && experienceLevelLabel(s.experienceLevel) && s.vibeTags && s.vibeTags.length ? ' · ' : ''}${(s.vibeTags || []).map(v => escapeHtml(v)).join(' · ')}</div>` : ''}
         <div class="mp-row"><i class="fa-solid fa-star"></i><strong>${s.rating}</strong>&nbsp;·&nbsp;${s.reviews.toLocaleString()} rev&nbsp;&nbsp;${s.priceLabel}&nbsp;&nbsp;<span style="color:var(--plum-light)">${s.distance.toFixed(1)} mi</span></div>
         <div class="mp-tags">${tagsHtml}</div>
+        ${s.websiteUrl ? `<div class="mp-yelp"><a href="${escapeAttr(s.websiteUrl)}" target="_blank" rel="noopener noreferrer">Visit website</a></div>` : ''}
         ${s.yelpUrl ? `<div class="mp-yelp"><a href="${escapeAttr(s.yelpUrl)}" target="_blank" rel="noopener noreferrer">View on Yelp</a></div>` : ''}
         <button class="mp-book" onclick="openBooking(${sid})">Book a Class</button>
       </div>`, {maxWidth:260});
@@ -1595,12 +1621,13 @@ function renderCards() {
           </div>
           <div class="card-price">${s.priceLabel}</div>
         </div>
-        <div class="card-name">${escapeHtml(s.name)}</div>
+        <div class="card-name">${s.slug ? `<a class="card-title-link" href="/studios/${encodeURIComponent(s.slug)}">${escapeHtml(s.name)}</a>` : escapeHtml(s.name)}</div>
         <div class="card-addr"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(s.address)}</div>
         ${(s.experienceLevel && experienceLevelLabel(s.experienceLevel)) || (s.vibeTags && s.vibeTags.length) ? `<div class="card-editorial">${s.experienceLevel && experienceLevelLabel(s.experienceLevel) ? `<span class="level-pill ${experienceLevelClass(s.experienceLevel)}">${escapeHtml(experienceLevelLabel(s.experienceLevel))}</span>` : ''}${(s.vibeTags || []).map(v => `<span class="vibe-chip">${escapeHtml(v)}</span>`).join('')}</div>` : ''}
         ${snippet ? `<div class="card-snippet"><i class="fa-solid fa-quote-left" aria-hidden="true"></i>${escapeHtml(snippet)}</div>` : ''}
         ${classTipsSnippet(s) ? `<div class="card-tips-block"><span class="tips-label"><i class="fa-solid fa-lightbulb" aria-hidden="true"></i> Class tips</span>${escapeHtml(classTipsSnippet(s))}</div>` : ''}
         <div class="card-tags">${s.tags.map(tagHTML).join('')}</div>
+        ${s.websiteUrl ? `<div class="card-yelp"><a href="${escapeAttr(s.websiteUrl)}" target="_blank" rel="noopener noreferrer">Visit website</a></div>` : ''}
         ${s.yelpUrl ? `<div class="card-yelp"><a href="${escapeAttr(s.yelpUrl)}" target="_blank" rel="noopener noreferrer">View on Yelp</a></div>` : ''}
         <div class="card-footer">
           <div class="card-dist"><i class="fa-solid fa-person-walking"></i> ${s.distance.toFixed(1)} mi away</div>
@@ -1988,7 +2015,7 @@ function initRippleSearch() {
   });
 }
 
-const CURSOR_INTERACTIVE = 'a,button,[role="button"],label,.studio-card,.filter-pill,.view-btn,.loc-btn,.card-fave,.card-btn,.scroll-hint,.day-tab,.class-type-card,.modal-close,.book-slot-btn,.form-btn,.mp-book,.footer-links a,.nav-logo,.class-item,.filter-select,.perk,.leaflet-interactive,.leaflet-popup-close-button,.toast';
+const CURSOR_INTERACTIVE = 'a,button,[role="button"],label,.studio-card,.filter-pill,.view-btn,.loc-btn,.card-fave,.card-btn,.card-title-link,.mp-name-link,.scroll-hint,.day-tab,.class-type-card,.modal-close,.book-slot-btn,.form-btn,.mp-book,.footer-links a,.nav-logo,.class-item,.filter-select,.perk,.leaflet-interactive,.leaflet-popup-close-button,.toast';
 
 function cursorIsNativeField(el) {
   if (!el || !el.closest) return false;

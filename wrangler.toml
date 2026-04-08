@@ -8,3 +8,8 @@ compatibility_date = "2024-01-01"
 
 [assets]
 directory = "public"
+
+# Public Sanity read (apicdn) — used for /studios/:slug and /sitemap.xml
+[vars]
+SANITY_PROJECT_ID = "t0z5ndwm"
+SANITY_DATASET = "production"

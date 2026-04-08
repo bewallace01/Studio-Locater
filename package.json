@@ -11,7 +11,8 @@
     "deploy:enrich": "npx wrangler deploy -c wrangler.enrich.toml",
     "cms": "npm run dev --prefix studio",
     "import:search": "node scripts/import-from-search-api.mjs",
-    "enrich:studios": "node scripts/enrich-studios-from-reviews.mjs"
+    "enrich:studios": "node scripts/enrich-studios-from-reviews.mjs",
+    "backfill:slugs": "node scripts/backfill-studio-slugs.mjs"
   },
   "engines": {
     "node": ">=18"

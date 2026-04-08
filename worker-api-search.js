@@ -192,7 +192,7 @@ async function fetchSanityStudios(env, placeIds) {
     throw new Error('Missing SANITY_PROJECT_ID or SANITY_DATASET');
   }
   const groq =
-    '*[_type == "studio" && placeId in $placeIds]{ placeId, tags, featured, description, rating, reviews, reviewHighlight, experienceLevel, vibeTags, classTips, "cardImageUrl": cardImage.asset->url }';
+    '*[_type == "studio" && placeId in $placeIds]{ placeId, tags, featured, description, website, rating, reviews, reviewHighlight, experienceLevel, vibeTags, classTips, "slug": slug.current, "cardImageUrl": cardImage.asset->url }';
   const base = `https://${projectId}.apicdn.sanity.io/v2024-01-01/data/query/${dataset}`;
   const u = new URL(base);
   u.searchParams.set('query', groq);
@@ -250,7 +250,9 @@ function mergeResults(googleResults, sanityResults, googleApiKey) {
       imageUrl: cmsImg || googleImg || null,
       experienceLevel: s.experienceLevel && String(s.experienceLevel).trim() ? String(s.experienceLevel).trim() : null,
       vibeTags: Array.isArray(s.vibeTags) ? s.vibeTags.filter(Boolean) : [],
-      classTips: s.classTips != null && String(s.classTips).trim() ? String(s.classTips).trim() : null
+      classTips: s.classTips != null && String(s.classTips).trim() ? String(s.classTips).trim() : null,
+      website: s.website != null && String(s.website).trim() ? String(s.website).trim() : null,
+      slug: s.slug != null && String(s.slug).trim() ? String(s.slug).trim() : null
     };
   });
 }
