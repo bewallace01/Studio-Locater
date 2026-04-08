@@ -10,13 +10,15 @@
  *   GET  /api/admin/stats      → signup & post stats (requires auth)
  *   GET  /api/admin/blogs      → list blog posts (requires auth)
  *   POST /api/admin/blogs/generate → generate post via Claude (requires auth)
+ *   POST /api/admin/blogs/suggest-prompts → AI topic ideas or refine a rough prompt (requires auth)
  *   PATCH  /api/admin/blogs/:id    → publish / unpublish (requires auth)
  *   DELETE /api/admin/blogs/:id    → delete post (requires auth)
  *   GET  /api/admin/schedule   → get blog schedule config (requires auth)
  *   POST /api/admin/schedule   → save blog schedule config (requires auth)
  *   POST /api/track/signup     → record a user signup event (public, no auth)
+ *   GET  /api/blog-posts       → JSON list of published posts for nav (public)
  *   GET  /blog                 → public blog listing
- *   GET  /blog/:slug           → public blog post page
+ *   GET  /blog/:slug           → public post (published); drafts only if admin session
  *
  * Secrets required (set via `npx wrangler secret put <NAME>`):
  *   GOOGLE_CLIENT_ID      – OAuth 2.0 client ID from Google Cloud Console
@@ -189,6 +191,14 @@ function isAllowedEmail(env, email) {
   return allowed.includes(email.toLowerCase());
 }
 
+/** Same rules as requireAuth: dev without KV, or valid session + allowed email. */
+async function canPreviewBlogDraft(request, env) {
+  if (!env.SESSIONS) return true;
+  const session = await getSession(env, request);
+  if (!session?.email) return false;
+  return isAllowedEmail(env, session.email);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Blog generation via Claude
 // ─────────────────────────────────────────────────────────────────────────────
@@ -250,6 +260,84 @@ Respond in this exact JSON format (no markdown, no code fences, just raw JSON):
     excerpt:   parsed.excerpt   || '',
     body_html: parsed.body_html || parsed.body || '',
   };
+}
+
+async function anthropicJson(env, userPrompt, maxTokens = 1200) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key':         env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'Content-Type':      'application/json',
+    },
+    body: JSON.stringify({
+      model:      'claude-haiku-4-5-20251001',
+      max_tokens: maxTokens,
+      messages: [{ role: 'user', content: userPrompt }],
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Claude API error: ${err}`);
+  }
+  const data = await res.json();
+  const text = data.content?.[0]?.text || '';
+  const clean = text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+  try {
+    return JSON.parse(clean);
+  } catch {
+    const m = clean.match(/\{[\s\S]*\}/);
+    if (m) return JSON.parse(m[0]);
+    throw new Error('Claude returned unparseable JSON. Try again.');
+  }
+}
+
+/** action: "list" → { prompts: string[] }; action: "refine" → { prompt: string } */
+async function handleAdminSuggestPrompts(request, env) {
+  await requireAuth(request, env);
+  if (!env.ANTHROPIC_API_KEY) return jsonRes({ error: 'ANTHROPIC_API_KEY secret not set.' }, 500);
+
+  const body = await request.json().catch(() => ({}));
+  const action  = String(body.action || 'list').toLowerCase();
+  const classes = String(body.classes || '').trim();
+  const classCtx = classes ? ` Prefer angles that mention or relate to these class types when relevant: ${classes}.` : '';
+
+  if (action === 'refine') {
+    const text = String(body.text || body.seed || '').trim();
+    if (!text) return jsonRes({ error: 'text is required for refine' }, 400);
+    const prompt = `You help an editor who writes blog posts for Studio Locater, a fitness studio directory app.${classCtx}
+
+The editor wrote this rough idea for a post (may be a fragment or bullet list):
+"""
+${text}
+"""
+
+Rewrite it as ONE clear, detailed prompt that another writer could use to produce an 400–600 word article. Include: target reader, tone, 2–4 specific points or sections to cover, and any SEO-friendly angle. Keep it under 1200 characters. Output raw JSON only:
+{"prompt":"..."}`;
+
+    const parsed = await anthropicJson(env, prompt, 900);
+    const refined = String(parsed.prompt || parsed.refined || '').trim();
+    if (!refined) return jsonRes({ error: 'Could not refine prompt. Try again.' }, 500);
+    return jsonRes({ prompt: refined });
+  }
+
+  const seed = String(body.seed || '').trim();
+  const count = Math.min(12, Math.max(3, parseInt(body.count, 10) || 8));
+  const seedCtx = seed
+    ? `\nSteer topics toward this theme (interpret broadly): "${seed}".`
+    : '\nVary themes: studio culture, class formats, motivation, recovery, beginners, seasonal fitness, community, etc.';
+
+  const prompt = `You brainstorm blog post ideas for "Studio Locater", a fitness & wellness studio directory.${classCtx}${seedCtx}
+
+Return exactly ${count} distinct prompts. Each prompt must be 2–4 sentences: concrete angle, what to cover, and why it helps readers pick or enjoy studio classes. No duplicate angles.
+
+Respond with raw JSON only (no markdown):
+{"prompts":["..."]}`;
+
+  const parsed = await anthropicJson(env, prompt, 1400);
+  const prompts = Array.isArray(parsed.prompts) ? parsed.prompts.map(p => String(p).trim()).filter(Boolean) : [];
+  if (!prompts.length) return jsonRes({ error: 'No prompts returned. Try again.' }, 500);
+  return jsonRes({ prompts });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -367,10 +455,13 @@ function buildBlogIndexHtml(origin, posts) {
 </html>`;
 }
 
-function buildBlogPostHtml(origin, post) {
+function buildBlogPostHtml(origin, post, opts = {}) {
+  const draftPreview = opts.draftPreview === true;
   const dateStr = post.published_at
     ? new Date(post.published_at * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-    : '';
+    : draftPreview && post.created_at
+      ? `Draft · ${new Date(post.created_at * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+      : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -378,6 +469,7 @@ function buildBlogPostHtml(origin, post) {
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escHtml(post.title)} — Studio Locater Blog</title>
   <meta name="description" content="${escHtml(post.excerpt || '')}">
+  ${draftPreview ? '<meta name="robots" content="noindex, nofollow">' : ''}
   <link rel="canonical" href="${origin}/blog/${escHtml(post.slug)}">
   ${BLOG_FONTS}
   <style>
@@ -622,6 +714,18 @@ async function handleTrackSignup(request, env) {
   return jsonRes({ ok: true });
 }
 
+async function handlePublicBlogPostsJson(request, env) {
+  const rows = await env.DB.prepare(
+    "SELECT slug, title FROM blog_posts WHERE status='published' ORDER BY published_at DESC LIMIT 12"
+  ).all();
+  return new Response(JSON.stringify({ posts: rows.results || [] }), {
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'public, max-age=120',
+    },
+  });
+}
+
 async function handleBlogIndex(request, env) {
   const rows = await env.DB.prepare(
     "SELECT id, slug, title, excerpt, published_at FROM blog_posts WHERE status='published' ORDER BY published_at DESC LIMIT 20"
@@ -631,12 +735,20 @@ async function handleBlogIndex(request, env) {
 }
 
 async function handleBlogPost(request, env, slug) {
-  const post = await env.DB.prepare(
-    "SELECT * FROM blog_posts WHERE slug = ? AND status = 'published'"
-  ).bind(slug).first();
+  // Slug is already decoded by the route matcher.
+  const post = await env.DB.prepare('SELECT * FROM blog_posts WHERE slug = ?').bind(slug).first();
   if (!post) return htmlRes('<h1>Post not found</h1>', 404);
-  const html = buildBlogPostHtml(new URL(request.url).origin, post);
-  return htmlRes(html);
+
+  if (post.status === 'published') {
+    return htmlRes(buildBlogPostHtml(new URL(request.url).origin, post));
+  }
+
+  if (!(await canPreviewBlogDraft(request, env))) {
+    return htmlRes('<h1>Post not found</h1>', 404);
+  }
+
+  const html = buildBlogPostHtml(new URL(request.url).origin, post, { draftPreview: true });
+  return htmlRes(html, 200, { 'Cache-Control': 'private, no-store' });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -675,6 +787,10 @@ export default {
       try { return await handleAdminGenerateBlog(request, env); }
       catch (r) { return r instanceof Response ? r : jsonRes({ error: String(r?.message || r) }, 500); }
     }
+    if (path === '/api/admin/blogs/suggest-prompts' && method === 'POST') {
+      try { return await handleAdminSuggestPrompts(request, env); }
+      catch (r) { return r instanceof Response ? r : jsonRes({ error: String(r?.message || r) }, 500); }
+    }
     {
       const bm = path.match(/^\/api\/admin\/blogs\/(\d+)$/);
       if (bm) {
@@ -698,6 +814,11 @@ export default {
     if (path === '/api/track/signup' && method === 'POST') {
       try { return await handleTrackSignup(request, env); }
       catch { return jsonRes({ ok: true }); } // never surface errors to public
+    }
+
+    if (path === '/api/blog-posts' && method === 'GET') {
+      try { return await handlePublicBlogPostsJson(request, env); }
+      catch (r) { return r instanceof Response ? r : jsonRes({ error: String(r) }, 500); }
     }
 
     // ── Blog routes ─────────────────────────────────────────────────────────

@@ -26,6 +26,11 @@ app.post('/api/track/signup', (_req, res) => {
   res.json({ ok: true, local: true });
 });
 
+/** Local stub: blog list lives on the Worker (D1). */
+app.get('/api/blog-posts', (_req, res) => {
+  res.json({ posts: [] });
+});
+
 app.get('/admin', (_req, res) => {
   res.sendFile(path.join(publicDir, 'admin.html'));
 });

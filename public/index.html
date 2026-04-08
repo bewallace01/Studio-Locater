@@ -134,6 +134,37 @@
     .nav-links { display:flex; align-items:center; gap:28px; list-style:none; }
     .nav-links a { text-decoration:none; color:var(--plum-mid); font-size:14px; font-weight:500; letter-spacing:.02em; cursor:pointer; transition:color 0.2s; }
     .nav-links a:hover { color:var(--plum); }
+    .nav-dropdown { position:relative; }
+    .nav-dropdown > .nav-blog-main {
+      display:inline-flex; align-items:center; gap:6px;
+    }
+    .nav-dd-ico { font-size:9px; opacity:0.65; transition:transform .2s; }
+    .nav-dropdown:hover .nav-dd-ico { transform:rotate(-180deg); }
+    .nav-dropdown-panel {
+      position:absolute; top:100%; left:50%; transform:translateX(-50%);
+      padding-top:14px; min-width:260px; max-width:min(320px, 92vw);
+      opacity:0; visibility:hidden; pointer-events:none; transition:opacity .2s, visibility .2s;
+    }
+    .nav-dropdown:hover .nav-dropdown-panel,
+    .nav-dropdown:focus-within .nav-dropdown-panel {
+      opacity:1; visibility:visible; pointer-events:auto;
+    }
+    .nav-dropdown-inner {
+      background:#fff; border:1px solid var(--border); border-radius:14px;
+      box-shadow:0 14px 44px rgba(61,43,61,.14); overflow:hidden;
+    }
+    .nav-dd-header {
+      display:block; padding:12px 18px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
+      color:var(--rose-deep); border-bottom:1px solid var(--border); text-decoration:none !important;
+    }
+    .nav-dd-header:hover { background:var(--blush-light); color:var(--plum) !important; }
+    .nav-dd-scroll { max-height:min(320px, 55vh); overflow-y:auto; }
+    .nav-dd-list a {
+      display:block; padding:10px 18px; font-size:13px; color:var(--plum-mid); text-decoration:none;
+      border-top:1px solid var(--border); line-height:1.4;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .nav-dd-list a:hover { background:var(--blush-light); color:var(--plum); }
     .nav-cta {
       background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep)) !important;
       color:#fff !important; padding:10px 22px; border-radius:50px;
@@ -178,6 +209,14 @@
       border-bottom:none; margin-top:8px; text-align:center; border-radius:50px; padding:12px;
       background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep)); color:#fff !important; font-weight:600;
     }
+    .nav-drawer-blog { border-bottom:1px solid var(--border); padding-bottom:4px; margin-bottom:4px; }
+    .nav-drawer-blog > a:first-child { border-bottom:none; font-weight:600; color:var(--plum) !important; }
+    .nav-drawer-sublinks { padding:0 4px 8px 12px; display:flex; flex-direction:column; gap:2px; }
+    .nav-drawer-sublinks a {
+      font-size:14px !important; padding:8px 4px !important; border-bottom:none !important;
+      color:var(--plum-light) !important; line-height:1.35;
+    }
+    .nav-drawer-sublinks a:hover { color:var(--rose-deep) !important; }
 
     /* ═══════════════ HERO ═══════════════ */
     .hero {
@@ -685,7 +724,15 @@
   <ul class="nav-links">
     <li><a href="#main" onclick="event.preventDefault(); scrollToMain();">Explore</a></li>
     <li><a href="#" onclick="event.preventDefault(); openClasses();">Classes</a></li>
-    <li><a href="#" onclick="event.preventDefault(); toast('Our blog launches next month','info')">Blog</a></li>
+    <li class="nav-dropdown">
+      <a class="nav-blog-main" href="/blog"><span>Blog</span> <i class="fa-solid fa-chevron-down nav-dd-ico" aria-hidden="true"></i></a>
+      <div class="nav-dropdown-panel" aria-label="Recent blog posts">
+        <div class="nav-dropdown-inner">
+          <a class="nav-dd-header" href="/blog">All articles</a>
+          <div class="nav-dd-scroll"><div class="nav-dd-list" id="navBlogPostLinks"></div></div>
+        </div>
+      </div>
+    </li>
     <li><a class="nav-cta" href="#" onclick="event.preventDefault(); openSignup();">Sign Up Free</a></li>
   </ul>
   <button type="button" class="nav-menu-btn" id="navMenuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="navDrawer">
@@ -698,7 +745,10 @@
     <button type="button" class="nav-drawer-close" onclick="toggleNavDrawer(false)" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
     <a href="#main" onclick="event.preventDefault();toggleNavDrawer(false);scrollToMain()">Explore</a>
     <a href="#" onclick="event.preventDefault();toggleNavDrawer(false);openClasses()">Classes</a>
-    <a href="#" onclick="event.preventDefault();toggleNavDrawer(false);toast('Our blog launches next month','info')">Blog</a>
+    <div class="nav-drawer-blog">
+      <a href="/blog" onclick="toggleNavDrawer(false)">Blog</a>
+      <div class="nav-drawer-sublinks" id="navDrawerBlogLinks"></div>
+    </div>
     <a href="#" class="nav-drawer-cta" onclick="event.preventDefault();toggleNavDrawer(false);openSignup()">Sign Up Free</a>
   </div>
 </div>
@@ -823,7 +873,7 @@
   <ul class="footer-links">
     <li><a onclick="toast('About page coming soon','info')">About</a></li>
     <li><a onclick="toast('Partner with us — email hello@studiolocater.app','info')">For Studios</a></li>
-    <li><a onclick="toast('Blog launches next month','info')">Blog</a></li>
+    <li><a href="/blog">Blog</a></li>
     <li><a onclick="toast('Your privacy matters to us','info')">Privacy</a></li>
     <li><a onclick="toast('Contact: hello@studiolocater.app','info')">Contact</a></li>
   </ul>
@@ -2173,6 +2223,23 @@ function initCustomCursor() {
   }
   initReveal();
   initRippleSearch();
+})();
+
+(function initBlogNavLinks() {
+  const desk = document.getElementById('navBlogPostLinks');
+  const drawer = document.getElementById('navDrawerBlogLinks');
+  if (!desk && !drawer) return;
+  fetch('/api/blog-posts')
+    .then(function (r) { return r.ok ? r.json() : { posts: [] }; })
+    .then(function (data) {
+      var posts = (data && data.posts) ? data.posts : [];
+      var html = posts.map(function (p) {
+        return '<a href="/blog/' + encodeURIComponent(p.slug) + '">' + escapeHtml(p.title) + '</a>';
+      }).join('');
+      if (desk) desk.innerHTML = html;
+      if (drawer) drawer.innerHTML = html;
+    })
+    .catch(function () {});
 })();
 </script>
 </body>

@@ -271,6 +271,16 @@
     .modal h3 { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; margin-bottom: 6px; color: var(--plum); }
     .modal p  { color: var(--plum-light); font-size: 14px; margin-bottom: 22px; line-height: 1.6; }
     .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+    .prompt-suggest-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+    .prompt-suggest-bar .hint { font-size: 12px; color: var(--plum-light); flex: 1 1 100%; margin-top: 4px; }
+    #gen-prompt-chips { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; margin-bottom: 8px; padding: 4px 0; }
+    .prompt-chip {
+      text-align: left; font-size: 13px; line-height: 1.45; color: var(--plum);
+      background: var(--blush-light); border: 1px solid var(--border); border-radius: 10px;
+      padding: 10px 12px; cursor: pointer; font-family: 'DM Sans', sans-serif;
+      transition: border-color .15s, background .15s;
+    }
+    .prompt-chip:hover { border-color: var(--rose); background: var(--blush); }
 
     /* ── Toast ─────────────────────────────────────────────────── */
     #toast {
@@ -496,8 +506,14 @@
   <div class="modal">
     <h3>Generate a Blog Post</h3>
     <p>Describe what you'd like Claude to write about. The more specific, the better the result.</p>
-    <div class="form-group" style="margin-bottom:16px;">
+    <div class="form-group" style="margin-bottom:12px;">
       <label class="form-label">Topic / Prompt</label>
+      <div class="prompt-suggest-bar">
+        <button type="button" class="btn btn-secondary" id="gen-suggest-btn">Suggest topics</button>
+        <button type="button" class="btn btn-secondary" id="gen-refine-btn">Improve prompt</button>
+        <span class="hint">Suggest: AI-generated ideas you can click to use. Improve: rewrites your text below into a fuller prompt.</span>
+      </div>
+      <div id="gen-prompt-chips" style="display:none;"></div>
       <textarea class="form-textarea" id="gen-topic" placeholder="e.g. The top 5 benefits of joining a group fitness class — covering motivation, accountability, variety, cost, and social connection." style="min-height:110px;"></textarea>
     </div>
     <div class="form-group">
@@ -577,7 +593,7 @@ async function loadOverview() {
     document.getElementById('stat-month').textContent = fmt(data.last30);
     document.getElementById('stat-posts').textContent = fmt(data.published_posts);
     const d = (data.last7||0) - (data.prev7||0), el = document.getElementById('stat-week-delta');
-    if (d !== 0) { el.textContent = (d>0?'▲ ':'▼ ')+Math.abs(d)+' vs prev week'; el.className='stat-delta '+(d>0?'up':'down'); }
+    if (d !== 0) { el.textContent = (d > 0 ? '+' : '') + d + ' vs prev week'; el.className='stat-delta '+(d>0?'up':'down'); }
     renderSignupsChart(data.daily || []);
   } catch(e) { console.error(e); }
 }
@@ -623,7 +639,12 @@ async function publishPost(id) { try { await apiFetch(`/api/admin/blogs/${id}`,{
 async function unpublishPost(id) { try { await apiFetch(`/api/admin/blogs/${id}`,{method:'PATCH',body:JSON.stringify({status:'draft'})}); const p=blogPosts.find(p=>p.id===id); if(p){p.status='draft';p.published_at=null;} renderBlogList(); toast('Post moved back to draft.'); } catch(e){toast(e.message,'error');} }
 async function deletePost(id) { if(!confirm('Delete this post? This cannot be undone.')) return; try { await apiFetch(`/api/admin/blogs/${id}`,{method:'DELETE'}); blogPosts=blogPosts.filter(p=>p.id!==id); renderBlogList(); toast('Post deleted.'); } catch(e){toast(e.message,'error');} }
 
-document.getElementById('generate-btn').addEventListener('click', ()=>{ document.getElementById('generate-modal').classList.remove('hidden'); document.getElementById('gen-topic').focus(); });
+document.getElementById('generate-btn').addEventListener('click', ()=>{
+  document.getElementById('generate-modal').classList.remove('hidden');
+  document.getElementById('gen-prompt-chips').style.display = 'none';
+  document.getElementById('gen-prompt-chips').innerHTML = '';
+  document.getElementById('gen-topic').focus();
+});
 document.getElementById('gen-cancel').addEventListener('click', ()=>document.getElementById('generate-modal').classList.add('hidden'));
 document.getElementById('generate-modal').addEventListener('click', e=>{ if(e.target===document.getElementById('generate-modal')) document.getElementById('generate-modal').classList.add('hidden'); });
 
@@ -638,6 +659,56 @@ document.getElementById('gen-submit').addEventListener('click', async ()=>{
     toast('Post generated! Review it in the list below.'); renderBlogList();
   } catch(e){toast(e.message,'error');}
   finally{btn.disabled=false;btn.classList.remove('btn-loading');btn.textContent='Generate';}
+});
+
+function renderPromptChips(prompts) {
+  const wrap = document.getElementById('gen-prompt-chips');
+  if (!prompts.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+  wrap.innerHTML = prompts.map((p, i) =>
+    `<button type="button" class="prompt-chip" data-i="${i}">${escHtml(p)}</button>`
+  ).join('');
+  wrap.querySelectorAll('.prompt-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('gen-topic').value = prompts[parseInt(btn.dataset.i, 10)];
+      toast('Prompt applied. Edit if needed, then Generate.');
+    });
+  });
+}
+
+document.getElementById('gen-suggest-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('gen-suggest-btn');
+  const seed = document.getElementById('gen-topic').value.trim();
+  const classes = document.getElementById('gen-classes').value.trim();
+  btn.disabled = true;
+  try {
+    const data = await apiFetch('/api/admin/blogs/suggest-prompts', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'list', seed, classes, count: 8 }),
+    });
+    if (!data) return;
+    renderPromptChips(data.prompts || []);
+    toast('Pick a topic below or edit your prompt first and try again.');
+  } catch (e) { toast(e.message, 'error'); }
+  finally { btn.disabled = false; }
+});
+
+document.getElementById('gen-refine-btn').addEventListener('click', async () => {
+  const raw = document.getElementById('gen-topic').value.trim();
+  if (!raw) { toast('Add a rough idea in the box first, then Improve prompt.', 'error'); return; }
+  const classes = document.getElementById('gen-classes').value.trim();
+  const btn = document.getElementById('gen-refine-btn');
+  btn.disabled = true;
+  try {
+    const data = await apiFetch('/api/admin/blogs/suggest-prompts', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'refine', text: raw, classes }),
+    });
+    if (!data || !data.prompt) return;
+    document.getElementById('gen-topic').value = data.prompt;
+    toast('Prompt refined. Review and click Generate when ready.');
+  } catch (e) { toast(e.message, 'error'); }
+  finally { btn.disabled = false; }
 });
 
 // Schedule
@@ -662,7 +733,7 @@ document.getElementById('save-schedule-btn').addEventListener('click', async ()=
   if(!topics.length){toast('Please add at least one topic.','error');btn.disabled=false;return;}
   try {
     await apiFetch('/api/admin/schedule',{method:'POST',body:JSON.stringify({topic_pool:topics,frequency:document.getElementById('sched-frequency').value,day_of_week:parseInt(document.getElementById('sched-day').value),auto_publish:document.getElementById('sched-autopublish').checked?1:0,active:document.getElementById('sched-active').checked?1:0})});
-    toast('Schedule saved!'); document.getElementById('schedule-status').textContent='Saved ✓';
+    toast('Schedule saved!'); document.getElementById('schedule-status').textContent='Saved.';
   } catch(e){toast(e.message,'error');}
   finally{btn.disabled=false;}
 });
