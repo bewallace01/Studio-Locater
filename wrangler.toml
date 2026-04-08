@@ -1,7 +1,7 @@
 # Static assets come ONLY from `public/` (never the repo root — avoids bundling node_modules).
 #
 # Cloudflare Pages: set Build output directory to "public" (not "." or repo root).
-# Wrangler: npx wrangler deploy
+# Wrangler: `npm run deploy` → staging; `npm run deploy:prod` → this top-level Worker.
 name = "studio-locater"
 main = "worker.js"
 compatibility_date = "2024-01-01"
@@ -16,3 +16,16 @@ directory = "public"
 [vars]
 SANITY_PROJECT_ID = "t0z5ndwm"
 SANITY_DATASET = "production"
+
+# Staging Worker (`npm run deploy` uses --env staging; same Sanity dataset as production).
+# Secrets (same as default, scoped to this Worker name):
+#   npx wrangler secret put GOOGLE_API_KEY --env staging
+[env.staging]
+name = "studio-locater-staging"
+
+[env.staging.vars]
+SANITY_PROJECT_ID = "t0z5ndwm"
+SANITY_DATASET = "production"
+
+[env.staging.assets]
+directory = "public"

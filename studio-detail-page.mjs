@@ -26,6 +26,19 @@ export function normalizeExternalUrl(href) {
   return 'https://' + t;
 }
 
+/** Google Maps deep link — no API key required. */
+export function googleMapsUrlForStudio(studio) {
+  const pid = studio && studio.placeId && String(studio.placeId).trim();
+  if (pid) {
+    return `https://www.google.com/maps/search/?api=1&query_place_id=${encodeURIComponent(pid)}`;
+  }
+  const line = studio && formatSanityAddress(studio.address);
+  if (line && String(line).trim()) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(line).trim())}`;
+  }
+  return '';
+}
+
 export function formatSanityAddress(addr) {
   if (addr == null || addr === '') return '';
   if (typeof addr === 'string') return addr;
@@ -79,6 +92,8 @@ function jsonLdLocalBusiness(studio, canonicalUrl) {
   const img = s.cardImageUrl && String(s.cardImageUrl).trim() ? String(s.cardImageUrl).trim() : null;
   const sameAs = [];
   if (s.website && String(s.website).trim()) sameAs.push(normalizeExternalUrl(s.website));
+  const maps = googleMapsUrlForStudio(s);
+  if (maps) sameAs.push(maps);
 
   const obj = {
     '@context': 'https://schema.org',
@@ -144,6 +159,8 @@ export function buildStudioDetailHtml(studio, opts) {
     typeof studio.reviews === 'number' && Number.isFinite(studio.reviews) ? studio.reviews : 0;
   const price = priceLabel(studio.priceTier);
   const tags = Array.isArray(studio.tags) ? studio.tags.filter(Boolean) : [];
+  const mapsUrl = googleMapsUrlForStudio(studio);
+  const mapsUrlEsc = mapsUrl ? escapeHtml(mapsUrl) : '';
 
   const jsonLd = jsonLdLocalBusiness(studio, canonicalUrl);
 
@@ -156,6 +173,8 @@ export function buildStudioDetailHtml(studio, opts) {
   <meta name="description" content="${metaDesc}">
   ${robotsNoIndex ? '<meta name="robots" content="noindex, follow">' : ''}
   <link rel="canonical" href="${escapeHtml(canonicalUrl)}">
+  <link rel="icon" href="/favicon.svg?v=6" type="image/svg+xml" sizes="any">
+  <link rel="apple-touch-icon" href="/favicon.svg?v=6">
   <meta property="og:title" content="${name} | Studio Locater">
   <meta property="og:description" content="${metaDesc}">
   <meta property="og:url" content="${escapeHtml(canonicalUrl)}">
@@ -197,6 +216,8 @@ export function buildStudioDetailHtml(studio, opts) {
     blockquote { border-left:3px solid var(--rose-deep); padding-left:16px; margin:16px 0; font-style:italic; color:var(--plum-mid); }
     .google-note { font-size:12px; color:var(--plum-light); margin:-8px 0 20px; line-height:1.45; }
     .google-note i { margin-right:6px; color:#4285F4; }
+    .btn-maps { background:#fff; color:var(--plum); border:1.5px solid var(--border); }
+    .btn-maps:hover { border-color:#4285F4; color:#1a73e8; }
   </style>
 </head>
 <body>
@@ -222,6 +243,7 @@ export function buildStudioDetailHtml(studio, opts) {
         <div class="btn-row">
           <a class="btn btn-primary" href="/">Find classes nearby</a>
           ${website ? `<a class="btn btn-ghost" href="${escapeHtml(website)}" target="_blank" rel="noopener noreferrer" itemprop="url">Official website <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:11px;opacity:.8"></i></a>` : ''}
+          ${mapsUrlEsc ? `<a class="btn btn-maps" href="${mapsUrlEsc}" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-map-location-dot" style="margin-right:6px"></i>Google Maps — photos &amp; reviews</a>` : ''}
         </div>
       </header>
       ${highlight ? `<blockquote>${escapeHtml(highlight)}</blockquote>` : ''}
@@ -309,7 +331,8 @@ export async function enrichStudioWithGooglePlaces(doc, apiKey) {
   if (!doc || !doc.name) return { doc, augmented: false };
   const key = String(apiKey || '').trim();
   const placeId = doc.placeId && String(doc.placeId).trim();
-  if (!key || !placeId) return { doc, augmented: false };
+  if (!placeId) return { doc, augmented: false };
+  if (!key) return { doc, augmented: false };
 
   const fields = [
     'name',
@@ -326,7 +349,7 @@ export async function enrichStudioWithGooglePlaces(doc, apiKey) {
     const res = await fetch(u);
     if (!res.ok) return { doc, augmented: false };
     const data = await res.json();
-    if (data.status && data.status !== 'OK') return { doc, augmented: false };
+    if (!data || (data.status && data.status !== 'OK')) return { doc, augmented: false };
     const r = data.result;
     if (!r) return { doc, augmented: false };
 
@@ -357,15 +380,17 @@ export async function enrichStudioWithGooglePlaces(doc, apiKey) {
       augmented = true;
     }
 
-    const cmsRev = typeof doc.reviews === 'number' && Number.isFinite(doc.reviews) ? doc.reviews : 0;
     const gRev =
       typeof r.user_ratings_total === 'number' && Number.isFinite(r.user_ratings_total) ? r.user_ratings_total : 0;
-    if (gRev > 0 && cmsRev === 0) {
+    if (gRev > 0) {
       out.reviews = gRev;
       augmented = true;
       if (typeof r.rating === 'number' && Number.isFinite(r.rating)) {
         out.rating = Math.round(r.rating * 10) / 10;
       }
+    } else if (typeof r.rating === 'number' && Number.isFinite(r.rating)) {
+      out.rating = Math.round(r.rating * 10) / 10;
+      augmented = true;
     }
 
     const cmsHl = doc.reviewHighlight && String(doc.reviewHighlight).trim();
@@ -454,6 +479,8 @@ export function buildStudioNotFoundHtml(canonicalHome) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Studio not found | Studio Locater</title>
   <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.svg?v=6" type="image/svg+xml" sizes="any">
+  <link rel="apple-touch-icon" href="/favicon.svg?v=6">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@600&display=swap" rel="stylesheet">
   <style>
     body { font-family:'DM Sans',sans-serif; background:#FDF8F8; color:#3D2B3D; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; text-align:center; }

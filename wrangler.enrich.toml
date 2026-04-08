@@ -24,3 +24,16 @@ compatibility_date = "2024-01-01"
 # Cloudflare: weekdays 1–7 (1 = Sunday). Not Unix 0–6.
 [triggers]
 crons = ["0 6 * * 1"]
+
+# Staging: no cron (avoid accidental OpenAI spend). Trigger manually: GET /run?secret=…
+#   npx wrangler deploy -c wrangler.enrich.toml --env staging
+# Secrets: same as default with `-c wrangler.enrich.toml --env staging`
+[env.staging]
+name = "studio-locater-enrich-staging"
+
+[env.staging.vars]
+SANITY_PROJECT_ID = "t0z5ndwm"
+SANITY_DATASET = "production"
+
+[env.staging.triggers]
+crons = []

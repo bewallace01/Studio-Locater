@@ -22,3 +22,18 @@ SANITY_AUTO_IMPORT = "1"
 SANITY_AUTO_IMPORT_MAX = "100"
 # Remove or set to "0" when you no longer need X-Sanity-Import response headers.
 SANITY_IMPORT_DEBUG = "1"
+
+# Pre-production API (pair with main `studio-locater-staging`):
+#   npx wrangler deploy -c wrangler.api-search.toml --env staging
+# Secrets (staging Worker name):
+#   npx wrangler secret put GOOGLE_API_KEY -c wrangler.api-search.toml --env staging
+#   npx wrangler secret put SANITY_API_TOKEN -c wrangler.api-search.toml --env staging
+[env.staging]
+name = "studio-locater-api-staging"
+
+[env.staging.vars]
+SANITY_AUTO_IMPORT = "1"
+SANITY_AUTO_IMPORT_MAX = "100"
+SANITY_IMPORT_DEBUG = "1"
+SANITY_PROJECT_ID = "t0z5ndwm"
+SANITY_DATASET = "production"
