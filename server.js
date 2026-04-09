@@ -66,13 +66,16 @@ app.get('/', (_req, res) => {
 
 app.get('/sitemap.xml', async (req, res) => {
   try {
-    const { fetchAllStudioSlugs, buildSitemapXml } = await import(
-      path.join(__dirname, 'studio-detail-page.mjs')
-    );
+    const [{ fetchAllStudioSlugs, buildSitemapXml }, { CLASS_GUIDE_SLUGS }] = await Promise.all([
+      import(path.join(__dirname, 'studio-detail-page.mjs')),
+      import(path.join(__dirname, 'class-guide-slugs.mjs')),
+    ]);
     const slugs = await fetchAllStudioSlugs(SANITY_PROJECT_ID, SANITY_DATASET);
     const proto = req.headers['x-forwarded-proto'] || req.protocol;
     const origin = `${proto}://${req.get('host') || 'localhost'}`;
-    res.type('application/xml').send(buildSitemapXml(origin, slugs));
+    res.type('application/xml').send(
+      buildSitemapXml(origin, slugs, { blogSlugs: [], classSlugs: CLASS_GUIDE_SLUGS })
+    );
   } catch (e) {
     console.error(e);
     res.status(500).type('application/xml').send('<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"/>');

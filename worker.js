@@ -21,6 +21,7 @@
  *   POST /api/place-meta       → batch rating/review counts from Google Place Details (public; needs GOOGLE_API_KEY)
  *   GET  /blog                 → public blog listing
  *   GET  /blog/:slug           → public post (published); drafts only if admin session
+ *   GET  /sitemap.xml          → homepage, /blog, /classes, studios (Sanity), blog posts (D1), class guides
  *   POST /api/auth/magic-link  → email magic sign-in link (needs Gmail secrets + D1 migration 003)
  *   GET  /auth/magic           → consume token, set user_session cookie
  *   POST /api/auth/user-logout → clear user session (not admin)
@@ -56,6 +57,8 @@ import {
   handleUserFavoritesPost,
   handleUserFavoritesDelete,
 } from './user-magic-auth.mjs';
+
+import { CLASS_GUIDE_SLUGS } from './class-guide-slugs.mjs';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -1568,6 +1571,73 @@ function buildClassPageHtml(origin, slug) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Sitemap (must not throw — Search Console / crawlers expect 200 + valid XML)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function sitemapResponseHeaders(bodyUtf8, cacheSec) {
+  const enc = new TextEncoder();
+  const bytes = enc.encode(bodyUtf8);
+  const h = {
+    'Content-Type': 'application/xml; charset=utf-8',
+    'Cache-Control': `public, max-age=${cacheSec}`,
+    'Content-Length': String(bytes.byteLength),
+    'X-Content-Type-Options': 'nosniff',
+  };
+  return { bytes, headers: h };
+}
+
+async function handleSitemapXml(request, env) {
+  const url = new URL(request.url);
+  const method = request.method.toUpperCase();
+  const origin = String(url.origin || '').replace(/\/$/, '') || 'https://studiolocater.com';
+  try {
+    const projectId = env.SANITY_PROJECT_ID || 't0z5ndwm';
+    const dataset = env.SANITY_DATASET || 'production';
+    let slugs = [];
+    try {
+      slugs = await fetchAllStudioSlugs(projectId, dataset);
+    } catch {
+      slugs = [];
+    }
+    if (!Array.isArray(slugs)) slugs = [];
+
+    let blogSlugs = [];
+    try {
+      if (env.DB) {
+        const blogRows = await env.DB.prepare(
+          "SELECT slug FROM blog_posts WHERE status = 'published' ORDER BY published_at DESC"
+        ).all();
+        blogSlugs = (blogRows.results || []).map((r) => r.slug).filter(Boolean);
+      }
+    } catch {
+      blogSlugs = [];
+    }
+
+    const classSlugs = [...CLASS_GUIDE_SLUGS];
+    const xml = buildSitemapXml(origin, slugs, { blogSlugs, classSlugs });
+    const { bytes, headers } = sitemapResponseHeaders(xml, 600);
+    if (method === 'HEAD') {
+      return new Response(null, { status: 200, headers });
+    }
+    return new Response(bytes, { status: 200, headers });
+  } catch {
+    const fallback = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${origin}/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>`;
+    const { bytes, headers } = sitemapResponseHeaders(fallback, 120);
+    if (method === 'HEAD') {
+      return new Response(null, { status: 200, headers });
+    }
+    return new Response(bytes, { status: 200, headers });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main fetch handler + scheduled handler
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1724,19 +1794,7 @@ export default {
 
     // ── Sitemap ─────────────────────────────────────────────────────────────
     if (path === '/sitemap.xml') {
-      const projectId = env.SANITY_PROJECT_ID || 't0z5ndwm';
-      const dataset   = env.SANITY_DATASET    || 'production';
-      try {
-        const slugs = await fetchAllStudioSlugs(projectId, dataset);
-        const xml   = buildSitemapXml(url.origin, slugs);
-        return new Response(xml, {
-          headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=600' }
-        });
-      } catch {
-        return new Response('<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"/>', {
-          headers: { 'Content-Type': 'application/xml; charset=utf-8' }
-        });
-      }
+      return handleSitemapXml(request, env);
     }
 
     // ── Studio detail pages ─────────────────────────────────────────────────

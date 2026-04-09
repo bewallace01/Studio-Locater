@@ -437,9 +437,12 @@ export async function fetchAllStudioSlugs(projectId, dataset) {
 
 /**
  * @param {string} origin - e.g. https://example.com (no trailing slash)
- * @param {string[]} slugs
+ * @param {string[]} studioSlugs - Sanity studio slug.current values
+ * @param {{ blogSlugs?: string[]; classSlugs?: string[] }} [options]
  */
-export function buildSitemapXml(origin, slugs) {
+export function buildSitemapXml(origin, studioSlugs, options = {}) {
+  const blogSlugs = Array.isArray(options.blogSlugs) ? options.blogSlugs.filter(Boolean) : [];
+  const classSlugs = Array.isArray(options.classSlugs) ? options.classSlugs.filter(Boolean) : [];
   const base = String(origin || '').replace(/\/$/, '');
   const esc = (s) =>
     String(s)
@@ -449,10 +452,22 @@ export function buildSitemapXml(origin, slugs) {
       .replace(/"/g, '&quot;');
   const entries = [
     { loc: `${base}/`, priority: '1.0', changefreq: 'weekly' },
-    ...slugs.map((slug) => ({
+    { loc: `${base}/blog`, priority: '0.85', changefreq: 'weekly' },
+    { loc: `${base}/classes`, priority: '0.85', changefreq: 'weekly' },
+    ...studioSlugs.map((slug) => ({
       loc: `${base}/studios/${encodeURIComponent(slug)}`,
       priority: '0.7',
       changefreq: 'weekly'
+    })),
+    ...blogSlugs.map((slug) => ({
+      loc: `${base}/blog/${encodeURIComponent(slug)}`,
+      priority: '0.72',
+      changefreq: 'monthly'
+    })),
+    ...classSlugs.map((slug) => ({
+      loc: `${base}/classes/${encodeURIComponent(slug)}`,
+      priority: '0.75',
+      changefreq: 'monthly'
     }))
   ];
   const body = entries
