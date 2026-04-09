@@ -8,7 +8,26 @@
   <meta name="sanity-dataset" content="production">
   <!-- Google Places + merged Sanity (Cloudflare Worker). Set to your Worker URL; leave empty to skip. -->
   <meta name="search-api-base" content="https://studio-locater-api.wallacebailey32.workers.dev">
-  <title>Studio Locater — Find Your Studio</title>
+  <title>Studio Locater | Find Yoga, Pilates &amp; Fitness Studios Near You</title>
+  <meta name="description" content="Discover 2,400+ yoga, pilates, and wellness studios across the U.S. Browse classes, read reviews, and find your perfect fitness studio with Studio Locater.">
+  <link rel="canonical" href="https://studiolocater.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://studiolocater.com/">
+  <meta property="og:title" content="Studio Locater | Find Yoga, Pilates &amp; Fitness Studios Near You">
+  <meta property="og:description" content="Discover 2,400+ yoga, pilates, and wellness studios across the U.S. Browse classes, read reviews, and book your next workout.">
+  <meta property="og:image" content="https://studiolocater.com/favicon.svg">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Studio Locater | Find Yoga, Pilates &amp; Fitness Studios Near You">
+  <meta name="twitter:description" content="Discover 2,400+ yoga, pilates, and wellness studios across the U.S. Browse classes, read reviews, and find your perfect fitness studio.">
+  <meta name="twitter:image" content="https://studiolocater.com/favicon.svg">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@graph":[
+    {"@type":"WebSite","@id":"https://studiolocater.com/#website","url":"https://studiolocater.com/","name":"Studio Locater","description":"Directory of yoga, pilates, and wellness fitness studios across the United States.","publisher":{"@id":"https://studiolocater.com/#organization"}},
+    {"@type":"Organization","@id":"https://studiolocater.com/#organization","name":"Studio Locater","url":"https://studiolocater.com/"},
+    {"@type":"WebApplication","@id":"https://studiolocater.com/#webapp","name":"Studio Locater","url":"https://studiolocater.com/","applicationCategory":"LifestyleApplication","operatingSystem":"Web","browserRequirements":"Requires JavaScript","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+  ]}
+  </script>
   <link rel="icon" href="/favicon.svg?v=6" type="image/svg+xml" sizes="any">
   <link rel="apple-touch-icon" href="/favicon.svg?v=6">
   <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
@@ -796,7 +815,7 @@
         </div>
       </div>
     </li>
-    <li><a class="nav-cta" href="#" onclick="event.preventDefault(); openSignup();">Sign Up Free</a></li>
+    <li><a class="nav-cta" id="navAuthCta" href="#" onclick="event.preventDefault(); authNavClick();">Sign Up Free</a></li>
   </ul>
   <button type="button" class="nav-menu-btn" id="navMenuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="navDrawer">
     <i class="fa-solid fa-bars"></i>
@@ -830,7 +849,7 @@
       <a href="/blog" onclick="toggleNavDrawer(false)">Blog</a>
       <div class="nav-drawer-sublinks" id="navDrawerBlogLinks"></div>
     </div>
-    <a href="#" class="nav-drawer-cta" onclick="event.preventDefault();toggleNavDrawer(false);openSignup()">Sign Up Free</a>
+    <a href="#" class="nav-drawer-cta" id="navDrawerAuthCta" onclick="event.preventDefault();toggleNavDrawer(false);authNavClick()">Sign Up Free</a>
   </div>
 </div>
 
@@ -848,7 +867,7 @@
       <i class="fa-solid fa-location-dot"></i>
       2,400+ studios across the US
     </div>
-    <h1>Find Your <em>Perfect</em><br>Studio Nearby</h1>
+    <h1>Find Your <em>Perfect</em> <br>Studio Nearby</h1>
     <p class="hero-sub">Discover pilates, yoga &amp; wellness studios curated to your vibe, schedule, and budget.</p>
     <div class="search-card">
       <div class="search-field">
@@ -884,8 +903,8 @@
   </div>
 
   <!-- SVG Wave -->
-  <div class="hero-wave">
-    <svg viewBox="0 0 1440 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <div class="hero-wave" aria-hidden="true">
+    <svg viewBox="0 0 1440 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
       <path d="M0,40 C180,80 360,0 540,36 C720,72 900,8 1080,36 C1260,64 1380,24 1440,40 L1440,80 L0,80 Z" fill="#FDF8F8"/>
     </svg>
   </div>
@@ -995,8 +1014,7 @@
         <div class="form-group"><label class="form-label">First Name</label><input id="signupFirstName" class="form-input" type="text" placeholder="Sofia" autocomplete="given-name"></div>
         <div class="form-group"><label class="form-label">Last Name</label><input id="signupLastName" class="form-input" type="text" placeholder="Chen" autocomplete="family-name"></div>
       </div>
-      <div class="form-group"><label class="form-label">Email</label><input id="signupEmail" class="form-input" type="email" placeholder="you@example.com" autocomplete="email"></div>
-      <div class="form-group"><label class="form-label">Password</label><input id="signupPassword" class="form-input" type="password" placeholder="Min. 8 characters" autocomplete="new-password"></div>
+      <div class="form-group"><label class="form-label">Email</label><input id="signupEmail" class="form-input" type="email" placeholder="you@gmail.com" autocomplete="email"></div>
       <div class="form-group">
         <label class="form-label">Favourite Class Type</label>
         <select id="signupClassType" class="form-select">
@@ -1005,8 +1023,9 @@
           <option>Reformer Pilates</option><option>Meditation</option>
         </select>
       </div>
-      <button type="button" class="form-btn" onclick="signupSuccess()">Create Free Account</button>
-      <div class="form-hint">Already have an account? <a onclick="toast('Login coming soon','info')">Sign in</a></div>
+      <p class="form-hint" style="margin:-4px 0 12px;font-size:12px;color:var(--plum-light);line-height:1.45">We’ll email you a one-time sign-in link — no password.</p>
+      <button type="button" class="form-btn" id="signupSubmitBtn" onclick="requestMagicLink()">Email me a sign-in link</button>
+      <div class="form-hint">Same link to <a onclick="toast('Enter your email above — we’ll send a magic link','info')">sign in</a> on any device.</div>
     </div>
   </div>
 </div>
@@ -1095,6 +1114,9 @@
     }
   } catch (e) {}
 })();
+const SIGNUP_FORM_HTML = document.getElementById('signupContent')
+  ? document.getElementById('signupContent').innerHTML
+  : '';
 /* ══════════════════════════════════════
    DATA
 ══════════════════════════════════════ */
@@ -1804,6 +1826,7 @@ let state = {
   priceFilter: "any",
   sortBy: "rating",
   favorites: new Set(),
+  currentUser: null,
 };
 
 let studios = [];
@@ -1856,10 +1879,10 @@ function buildMapMarkers() {
     const m = L.marker([s.lat,s.lng],{icon:makeIcon()})
       .addTo(map)
       .bindPopup(`<div class="map-popup">
-        ${s.imageUrl ? `<img class="mp-thumb" src="${escapeAttr(s.imageUrl)}" alt="">` : ''}
+        ${s.imageUrl ? `<img class="mp-thumb" src="${escapeAttr(s.imageUrl)}" alt="${escapeAttr(`${String(s.name || 'Fitness studio').trim()} photo`)}" loading="lazy" decoding="async">` : ''}
         <div class="mp-name">${nameLinked}</div>
         ${(s.experienceLevel && experienceLevelLabel(s.experienceLevel)) || (s.vibeTags && s.vibeTags.length) ? `<div class="mp-vibes" style="font-size:11px;color:var(--plum-mid);margin-bottom:8px;line-height:1.4">${s.experienceLevel && experienceLevelLabel(s.experienceLevel) ? `<strong style="color:var(--plum)">${escapeHtml(experienceLevelLabel(s.experienceLevel))}</strong>` : ''}${s.experienceLevel && experienceLevelLabel(s.experienceLevel) && s.vibeTags && s.vibeTags.length ? ' · ' : ''}${(s.vibeTags || []).map(v => escapeHtml(v)).join(' · ')}</div>` : ''}
-        <div class="mp-row"><i class="fa-solid fa-star"></i><strong>${s.rating}</strong>&nbsp;·&nbsp;${s.reviews.toLocaleString()} rev&nbsp;&nbsp;${s.priceLabel}&nbsp;&nbsp;<span style="color:var(--plum-light)">${s.distance.toFixed(1)} mi</span></div>
+        <div class="mp-row"><i class="fa-solid fa-star"></i><strong>${s.rating}</strong> · ${s.reviews.toLocaleString()} rev · ${s.priceLabel} <span style="color:var(--plum-light)">${s.distance.toFixed(1)} mi</span></div>
         <div class="mp-tags">${tagsHtml}</div>
         ${s.websiteUrl ? `<div class="mp-yelp"><a href="${escapeAttr(s.websiteUrl)}" target="_blank" rel="noopener noreferrer">Visit website</a></div>` : ''}
         ${s.yelpUrl ? `<div class="mp-yelp"><a href="${escapeAttr(s.yelpUrl)}" target="_blank" rel="noopener noreferrer">View on Yelp</a></div>` : ''}
@@ -2013,8 +2036,9 @@ function renderCards() {
     const hasPhoto = s.imageUrl && String(s.imageUrl).trim();
     const snippet = cardSnippetText(s);
     const profileHref = studioProfileHref(s);
+    const photoAlt = escapeAttr(`${String(s.name || 'Fitness studio').trim()} — studio photo`);
     const imgEl = hasPhoto
-      ? `<img class="card-photo" src="${escapeAttr(s.imageUrl)}" alt="" loading="lazy" decoding="async">`
+      ? `<img class="card-photo" src="${escapeAttr(s.imageUrl)}" alt="${photoAlt}" loading="lazy" decoding="async">`
       : '';
     return `<div class="studio-card${isFeatured?' featured':''}"
         style="animation-delay:${delay}"
@@ -2034,7 +2058,7 @@ function renderCards() {
       <div class="card-body">
         <div class="card-meta">
           <div class="card-rating">
-            <i class="fa-solid fa-star"></i>&nbsp;${s.rating}
+            <i class="fa-solid fa-star"></i> ${s.rating}
             <span class="rev">(${s.reviews.toLocaleString()})</span>
           </div>
           <div class="card-price">${s.priceLabel}</div>
@@ -2058,8 +2082,8 @@ function renderCards() {
     </div>`;
   }).join('');
 }
-renderCards();
 (async () => {
+  await initSession();
   await loadStudiosNear(state.center.lat, state.center.lng, state.locationLabel, {});
 })();
 
@@ -2195,12 +2219,138 @@ function toggleNavDrawer(open) {
 document.getElementById('navMenuBtn')?.addEventListener('click', () => toggleNavDrawer());
 
 /* ══════════════════════════════════════
-   FAVOURITES
+   SESSION & FAVOURITES
 ══════════════════════════════════════ */
-function toggleFave(event,id) {
+function loadLocalFavorites() {
+  try {
+    const raw = localStorage.getItem('sl_favorites');
+    if (!raw) return;
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr)) arr.forEach(id => state.favorites.add(String(id)));
+  } catch (e) {}
+}
+function saveLocalFavorites() {
+  try {
+    localStorage.setItem('sl_favorites', JSON.stringify([...state.favorites]));
+  } catch (e) {}
+}
+
+function refreshAuthUI() {
+  const cta = document.getElementById('navAuthCta');
+  const d = document.getElementById('navDrawerAuthCta');
+  const label = state.currentUser ? 'Sign out' : 'Sign Up Free';
+  if (cta) cta.textContent = label;
+  if (d) d.textContent = label;
+}
+
+function authNavClick() {
+  if (state.currentUser) userLogout();
+  else openSignup();
+}
+
+async function userLogout() {
+  try {
+    await fetch('/api/auth/user-logout', { method: 'POST', credentials: 'same-origin' });
+  } catch (e) {}
+  state.currentUser = null;
+  try {
+    localStorage.removeItem('sl_favorites');
+  } catch (e) {}
+  state.favorites = new Set();
+  refreshAuthUI();
+  renderCards();
+  buildMapMarkers();
+  toast('Signed out', 'info');
+}
+
+function handleAuthQueryParams() {
+  try {
+    const q = new URLSearchParams(location.search);
+    if (q.get('signed_in') === '1') {
+      toast('You’re signed in', 'success');
+      q.delete('signed_in');
+      const s = q.toString();
+      history.replaceState({}, '', s ? `${location.pathname}?${s}` : location.pathname);
+    } else if (q.get('auth') === 'invalid' || q.get('auth') === 'expired') {
+      toast(q.get('auth') === 'expired' ? 'That sign-in link expired — request a new one.' : 'Invalid sign-in link.', 'error');
+      q.delete('auth');
+      const s = q.toString();
+      history.replaceState({}, '', s ? `${location.pathname}?${s}` : location.pathname);
+    }
+  } catch (e) {}
+}
+
+async function initSession() {
+  state.favorites = new Set();
+  try {
+    const r = await fetch('/api/me', { credentials: 'same-origin' });
+    const j = await r.json();
+    if (j.user) {
+      state.currentUser = j.user;
+      const fr = await fetch('/api/me/favorites', { credentials: 'same-origin' });
+      const fj = await fr.json();
+      if (fj.favorites && Array.isArray(fj.favorites)) {
+        fj.favorites.forEach(f => {
+          if (f.studioId) state.favorites.add(String(f.studioId));
+        });
+      }
+    } else {
+      state.currentUser = null;
+      loadLocalFavorites();
+    }
+  } catch (e) {
+    state.currentUser = null;
+    loadLocalFavorites();
+  }
+  refreshAuthUI();
+  handleAuthQueryParams();
+}
+
+async function toggleFave(event, id) {
   event.stopPropagation();
-  if(state.favorites.has(id)){state.favorites.delete(id);toast('Removed from favourites','heart');}
-  else{state.favorites.add(id);toast('Saved to favourites','heart');}
+  const sid = String(id);
+  const loved = state.favorites.has(sid);
+  if (loved) {
+    state.favorites.delete(sid);
+    if (state.currentUser) {
+      try {
+        await fetch('/api/me/favorites', {
+          method: 'DELETE',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studioId: sid }),
+        });
+      } catch (e) {}
+    } else saveLocalFavorites();
+    toast('Removed from favourites', 'heart');
+  } else {
+    state.favorites.add(sid);
+    if (state.currentUser) {
+      const s = studios.find(x => String(x.id) === sid);
+      try {
+        await fetch('/api/me/favorites', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            studioId: sid,
+            studioName: s ? s.name : null,
+            studioData: s
+              ? {
+                  name: s.name,
+                  address: s.address,
+                  rating: s.rating,
+                  imageUrl: s.imageUrl,
+                  tags: s.tags,
+                  slug: s.slug || null,
+                }
+              : null,
+          }),
+        });
+      } catch (e) {}
+    } else saveLocalFavorites();
+    toast('Saved to favourites', 'heart');
+  }
   renderCards();
 }
 
@@ -2282,6 +2432,10 @@ function confirmBooking(name,time) {
 ══════════════════════════════════════ */
 function openSignup() {
   toggleNavDrawer(false);
+  const sc = document.getElementById('signupContent');
+  if (sc && SIGNUP_FORM_HTML && !document.getElementById('signupSubmitBtn')) {
+    sc.innerHTML = SIGNUP_FORM_HTML;
+  }
   document.getElementById('signupOverlay').classList.add('open');
 }
 function openClasses() {
@@ -2314,16 +2468,52 @@ function trackSignupEvent() {
   }).catch(() => {});
 }
 
-function signupSuccess() {
+async function requestMagicLink() {
+  const emailEl = document.getElementById('signupEmail');
+  const email = emailEl && emailEl.value ? String(emailEl.value).trim() : '';
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    toast('Please enter a valid email', 'error');
+    return;
+  }
+  const btn = document.getElementById('signupSubmitBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+  }
   trackSignupEvent();
-  document.getElementById('signupContent').innerHTML=`
+  try {
+    const r = await fetch('/api/auth/magic-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ email }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      let msg = 'Could not send sign-in link.';
+      if (j.error === 'email_not_configured') msg = 'Sign-in email is not configured on this server yet.';
+      else if (j.error === 'gmail_send_failed' || j.error === 'gmail_not_configured') msg = 'Could not send email — try again later.';
+      toast(msg, 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Email me a sign-in link';
+      }
+      return;
+    }
+    document.getElementById('signupContent').innerHTML = `
     <div class="booking-success">
-      <div class="booking-success-icon"><i class="fa-solid fa-spa"></i></div>
-      <h3>Welcome to Studio Locater!</h3>
-      <p>Your account is ready. Start exploring studios, saving favourites, and booking classes.</p>
-      <button class="booking-success-btn" onclick="closeModal('signupOverlay');scrollToMain()">Start Exploring</button>
-    </div>
-  `;
+      <div class="booking-success-icon"><i class="fa-solid fa-envelope-open-text"></i></div>
+      <h3>Check your email</h3>
+      <p>We sent a sign-in link to <strong>${escapeHtml(email)}</strong>. It expires in 15 minutes.</p>
+      <button class="booking-success-btn" onclick="closeModal('signupOverlay')">Got it</button>
+    </div>`;
+  } catch (e) {
+    toast('Network error — try again', 'error');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Email me a sign-in link';
+    }
+  }
 }
 
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }

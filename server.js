@@ -26,6 +26,26 @@ app.post('/api/track/signup', (_req, res) => {
   res.json({ ok: true, local: true });
 });
 
+/** Local stub: magic-link auth + favorites live on the Worker. */
+app.post('/api/auth/magic-link', (_req, res) => {
+  res.status(503).json({ error: 'email_not_configured', local: true });
+});
+app.post('/api/auth/user-logout', (_req, res) => {
+  res.json({ ok: true, local: true });
+});
+app.get('/api/me', (_req, res) => {
+  res.json({ user: null, local: true });
+});
+app.get('/api/me/favorites', (_req, res) => {
+  res.json({ favorites: [], local: true });
+});
+app.post('/api/me/favorites', (_req, res) => {
+  res.status(401).json({ error: 'unauthorized', local: true });
+});
+app.delete('/api/me/favorites', (_req, res) => {
+  res.status(401).json({ error: 'unauthorized', local: true });
+});
+
 /** Local stub: blog list lives on the Worker (D1). */
 app.get('/api/blog-posts', (_req, res) => {
   res.json({ posts: [] });

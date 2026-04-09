@@ -35,6 +35,9 @@ id = "82fe593a33594a5798346fdb4ad910fc"
 #   npx wrangler secret put ADMIN_EMAILS          ← comma-separated: you@gmail.com,other@gmail.com
 #   npx wrangler secret put SESSION_SECRET        ← any long random string (openssl rand -hex 32)
 #   npx wrangler secret put ANTHROPIC_API_KEY     ← your Anthropic API key for blog generation
+#   npx wrangler secret put GMAIL_REFRESH_TOKEN   ← OAuth refresh token (Gmail API gmail.send)
+#   npx wrangler secret put GMAIL_SEND_AS         ← sender address (must match that mailbox)
+# Optional separate OAuth client for mail only: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET
 [vars]
 SANITY_PROJECT_ID = "t0z5ndwm"
 SANITY_DATASET = "production"

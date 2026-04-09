@@ -21,6 +21,11 @@
  *   POST /api/place-meta       → batch rating/review counts from Google Place Details (public; needs GOOGLE_API_KEY)
  *   GET  /blog                 → public blog listing
  *   GET  /blog/:slug           → public post (published); drafts only if admin session
+ *   POST /api/auth/magic-link  → email magic sign-in link (needs Gmail secrets + D1 migration 003)
+ *   GET  /auth/magic           → consume token, set user_session cookie
+ *   POST /api/auth/user-logout → clear user session (not admin)
+ *   GET  /api/me               → current end-user or null
+ *   GET/POST/DELETE /api/me/favorites → saved studios (auth)
  *
  * Secrets required (set via `npx wrangler secret put <NAME>`):
  *   GOOGLE_CLIENT_ID      – OAuth 2.0 client ID from Google Cloud Console
@@ -28,6 +33,8 @@
  *   ADMIN_EMAILS          – comma-separated allowed emails, e.g. "you@gmail.com"
  *   SESSION_SECRET        – random string for signing (openssl rand -hex 32)
  *   ANTHROPIC_API_KEY     – Claude API key for blog generation
+ *   GMAIL_REFRESH_TOKEN   – OAuth refresh token for sending mail (Gmail API gmail.send)
+ *   GMAIL_SEND_AS         – From address, e.g. you@gmail.com (must match that mailbox)
  */
 
 import {
@@ -39,6 +46,16 @@ import {
   fetchAllStudioSlugs,
   buildSitemapXml
 } from './studio-detail-page.mjs';
+
+import {
+  handleRequestMagicLink,
+  handleVerifyMagicLink,
+  handleUserLogout as handleUserLogoutMagic,
+  handleUserMe,
+  handleUserFavoritesGet,
+  handleUserFavoritesPost,
+  handleUserFavoritesDelete,
+} from './user-magic-auth.mjs';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -1565,6 +1582,57 @@ export default {
     if (path === '/auth/google')   return handleAuthGoogle(request, env);
     if (path === '/auth/callback') return handleAuthCallback(request, env);
     if (path === '/auth/logout' && method === 'POST') return handleAuthLogout(request, env);
+
+    // ── End-user magic link (Gmail) ─────────────────────────────────────────
+    if (path === '/auth/magic' && method === 'GET') {
+      try {
+        return await handleVerifyMagicLink(request, env);
+      } catch (r) {
+        return r instanceof Response ? r : jsonRes({ error: String(r) }, 500);
+      }
+    }
+    if (path === '/api/auth/magic-link' && method === 'POST') {
+      try {
+        return await handleRequestMagicLink(request, env);
+      } catch (r) {
+        return r instanceof Response ? r : jsonRes({ error: String(r) }, 500);
+      }
+    }
+    if (path === '/api/auth/user-logout' && method === 'POST') {
+      try {
+        return await handleUserLogoutMagic(request, env);
+      } catch (r) {
+        return r instanceof Response ? r : jsonRes({ error: String(r) }, 500);
+      }
+    }
+    if (path === '/api/me' && method === 'GET') {
+      try {
+        return await handleUserMe(request, env);
+      } catch (r) {
+        return r instanceof Response ? r : jsonRes({ error: String(r) }, 500);
+      }
+    }
+    if (path === '/api/me/favorites' && method === 'GET') {
+      try {
+        return await handleUserFavoritesGet(request, env);
+      } catch (r) {
+        return r instanceof Response ? r : jsonRes({ error: String(r) }, 500);
+      }
+    }
+    if (path === '/api/me/favorites' && method === 'POST') {
+      try {
+        return await handleUserFavoritesPost(request, env);
+      } catch (r) {
+        return r instanceof Response ? r : jsonRes({ error: String(r) }, 500);
+      }
+    }
+    if (path === '/api/me/favorites' && method === 'DELETE') {
+      try {
+        return await handleUserFavoritesDelete(request, env);
+      } catch (r) {
+        return r instanceof Response ? r : jsonRes({ error: String(r) }, 500);
+      }
+    }
 
     // ── Admin page ──────────────────────────────────────────────────────────
     if (path === '/admin') return handleAdminPage(request, env);

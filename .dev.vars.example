@@ -7,5 +7,12 @@ ADMIN_EMAILS=your@gmail.com
 SESSION_SECRET=
 ANTHROPIC_API_KEY=
 
+# End-user magic links (Gmail API). Same OAuth client as admin can work if you add gmail.send scope.
+# GMAIL_REFRESH_TOKEN=
+# GMAIL_SEND_AS=you@gmail.com
+# Optional: separate OAuth client for sending only
+# GMAIL_CLIENT_ID=
+# GMAIL_CLIENT_SECRET=
+
 # Optional (studio pages / Places — same as production if you have it)
 # GOOGLE_API_KEY=
