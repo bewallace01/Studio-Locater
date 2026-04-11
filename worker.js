@@ -246,9 +246,22 @@ const FITNESS_SEEDS = {
 };
 
 function unsplashUrl(keyword, w = 1200, h = 520) {
-  const key = (keyword || 'default').toLowerCase().split(/[\s,]/)[0];
-  const seed = FITNESS_SEEDS[key] || FITNESS_SEEDS.default;
-  return `https://picsum.photos/seed/${seed}/${w}/${h}`;
+  const raw = String(keyword || 'fitness').trim().toLowerCase();
+  const first = raw.split(/[\s,]+/).filter(Boolean)[0] || 'fitness';
+  let seed = FITNESS_SEEDS[first];
+  if (!seed) {
+    // Unique image per keyword when not in the curated map (avoid everyone using FITNESS_SEEDS.default)
+    const slug = raw.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    seed = (slug && slug.length <= 64 ? slug : `kw-${simpleHash(raw)}`) || FITNESS_SEEDS.default;
+  }
+  return `https://picsum.photos/seed/${encodeURIComponent(seed)}/${w}/${h}`;
+}
+
+/** Short stable hash for long / odd image_keyword strings (picsum seed). */
+function simpleHash(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h) ^ s.charCodeAt(i);
+  return Math.abs(h).toString(36).slice(0, 12);
 }
 
 async function generateBlogPost(env, topic, classes, includeQuiz = false) {
@@ -1080,7 +1093,7 @@ async function handlePlaceMetaPost(request, env) {
 
 async function handleBlogIndex(request, env) {
   const rows = await env.DB.prepare(
-    "SELECT id, slug, title, excerpt, published_at FROM blog_posts WHERE status='published' ORDER BY published_at DESC LIMIT 20"
+    "SELECT id, slug, title, excerpt, published_at, image_keyword FROM blog_posts WHERE status='published' ORDER BY published_at DESC LIMIT 20"
   ).all();
   const html = buildBlogIndexHtml(new URL(request.url).origin, rows.results || []);
   return htmlRes(html);
