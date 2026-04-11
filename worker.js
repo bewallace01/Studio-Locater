@@ -1011,8 +1011,9 @@ async function handleTrackSignup(request, env) {
       emailHash = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
     }
   }
+  // One signup per email (unique index on email_address); duplicates are ignored.
   await env.DB.prepare(
-    'INSERT INTO user_signups (email, source, metadata, email_address) VALUES (?, ?, ?, ?)'
+    'INSERT OR IGNORE INTO user_signups (email, source, metadata, email_address) VALUES (?, ?, ?, ?)'
   ).bind(emailHash, source, metadata, emailPlain).run();
   return jsonRes({ ok: true });
 }

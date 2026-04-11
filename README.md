@@ -24,6 +24,14 @@ Optional search API / enrich Workers: `deploy:all:staging` / `deploy:all:prod` (
 
 Secrets and vars are per environment in the Cloudflare dashboard or via `wrangler secret put` (use `--env staging` for staging).
 
+### D1 migrations
+
+Apply new SQL to **remote** D1 when you pull migrations (replace `…` with the migration filename):
+
+`npx wrangler d1 execute studio-locater-admin --file=migrations/….sql --remote -y`
+
+`package.json` includes helpers such as `d1:migrate:remote:signup-email` for migration `004_signup_unique_email.sql` (dedupe signups by email + unique index). Run staging and production databases as needed.
+
 ## Local development
 
 - **Site + API stubs:** `npm run dev` (Express `server.js`)
