@@ -16,3 +16,28 @@ ANTHROPIC_API_KEY=
 
 # Optional (studio pages / Places — same as production if you have it)
 # GOOGLE_API_KEY=
+
+# ── Mindbody Public API (optional; for schedule/pricing integrations) ────────
+# Sandbox is free and resets nightly (~12:00 AM PST). Use Site ID -99 for the
+# shared sandbox business. See README → “Mindbody sandbox”.
+# Credentials: Mindbody Developer Portal → your app → “Your API credentials”
+# (Source name + Source secret — not the sandbox website login password).
+MINDBODY_SOURCE_NAME=
+# Use ONE of: hex "Key" from developer portal app row (MINDBODY_APP_KEY), OR Public API source password (MINDBODY_SOURCE_SECRET).
+MINDBODY_APP_KEY=
+# For deployed Workers, also: wrangler secret put MINDBODY_APP_KEY --env=""  and  --env staging
+MINDBODY_SOURCE_SECRET=
+MINDBODY_SITE_ID=-99
+
+# POST /usertoken/issue — Mindbody needs a staff/site login per SiteId (see mindbody-api.mjs).
+# • Site ID -99 (sandbox): defaults are built in; you can override with:
+# MINDBODY_SANDBOX_USERNAME=
+# MINDBODY_SANDBOX_PASSWORD=
+# • Any other mindbodySiteId (live business): set real credentials (Mindbody docs / business owner):
+# MINDBODY_ISSUE_USERNAME=
+# MINDBODY_ISSUE_PASSWORD=
+# For deployed Workers, use the same names: wrangler secret put MINDBODY_ISSUE_PASSWORD --env=""  (and --env staging).
+# If v6 docs require a sandbox-specific base URL, set it; otherwise configure in code per docs.
+# MINDBODY_API_BASE_URL=
+# Optional: staff AccessToken cache TTL in seconds (default 300). Deployed Worker uses KV MINDBODY_TOKEN_CACHE.
+# MINDBODY_TOKEN_TTL_SEC=300

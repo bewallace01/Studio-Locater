@@ -41,6 +41,21 @@ export const studio = defineType({
       description: 'Official studio site (shown as “Visit website” on cards and map when set).'
     }),
     defineField({
+      name: 'mindbodySiteId',
+      title: 'Mindbody Site ID',
+      type: 'number',
+      description:
+        'When set (and your app is activated in Mindbody), the studio page loads live class schedule + pricing from Mindbody. Use sandbox **-99** only for testing. Leave empty for listings without Mindbody — use Website + description/class tips instead.'
+    }),
+    defineField({
+      name: 'mindbodyLocationIds',
+      title: 'Mindbody location IDs (optional)',
+      type: 'array',
+      of: [{type: 'number'}],
+      description:
+        'If the business has multiple locations in Mindbody, list the numeric location IDs to filter schedule and pricing API calls. Leave empty to use Mindbody defaults for the site.'
+    }),
+    defineField({
       name: 'cardImage',
       title: 'Card image',
       type: 'image',
@@ -85,6 +100,12 @@ export const studio = defineType({
       rows: 4,
       description:
         'Practical notes: parking, what to bring, locker situation, culture — sourced from reviews and editors.'
+    }),
+    defineField({
+      name: 'neighborhood',
+      title: 'Neighborhood',
+      type: 'string',
+      description: 'District or neighborhood (e.g. "Upper West Side", "Brooklyn Heights", "South Congress"). Enables neighborhood landing pages like /yoga-studios-upper-west-side.'
     }),
     defineField({
       name: 'address',

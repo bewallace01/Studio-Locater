@@ -27,6 +27,8 @@
  *   POST /api/auth/user-logout → clear user session (not admin)
  *   GET  /api/me               → current end-user or null
  *   GET/POST/DELETE /api/me/favorites → saved studios (auth)
+ *   GET  /api/mindbody/studio?slug=  → JSON: Mindbody class schedule + services (same as /api/mindbody/schedule)
+ *   GET  /api/mindbody/schedule?slug= → alias; AccessToken cached in KV MINDBODY_TOKEN_CACHE (~5 min)
  *
  * Secrets required (set via `npx wrangler secret put <NAME>`):
  *   GOOGLE_CLIENT_ID      – OAuth 2.0 client ID from Google Cloud Console
@@ -45,7 +47,14 @@ import {
   buildStudioDetailHtml,
   buildStudioNotFoundHtml,
   fetchAllStudioSlugs,
-  buildSitemapXml
+  buildSitemapXml,
+  fetchStudiosByCity,
+  fetchAllCityTagCombos,
+  fetchStudiosByNeighborhood,
+  fetchAllNeighborhoodTagCombos,
+  buildCityPageHtml,
+  cityToSlug,
+  citySlugToDisplay,
 } from './studio-detail-page.mjs';
 
 import {
@@ -56,9 +65,11 @@ import {
   handleUserFavoritesGet,
   handleUserFavoritesPost,
   handleUserFavoritesDelete,
+  notifySubscribersBlogPublished,
 } from './user-magic-auth.mjs';
 
 import { CLASS_GUIDE_SLUGS } from './class-guide-slugs.mjs';
+import { handleMindbodyStudioApi } from './mindbody-api.mjs';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -78,8 +89,23 @@ function studioHtmlResponse(html) {
 
 async function htmlForStudioDoc(doc, env, { canonicalUrl, robotsNoIndex }) {
   const gKey = String(env.GOOGLE_API_KEY || '').trim();
-  const { doc: merged, augmented } = await enrichStudioWithGooglePlaces(doc, gKey);
-  return buildStudioDetailHtml(merged, { canonicalUrl, robotsNoIndex, googleAugmented: augmented });
+  const [{ doc: merged, augmented }, reviews] = await Promise.all([
+    enrichStudioWithGooglePlaces(doc, gKey),
+    fetchStudioReviews(env, doc.slug),
+  ]);
+  return buildStudioDetailHtml(merged, { canonicalUrl, robotsNoIndex, googleAugmented: augmented, reviews });
+}
+
+async function fetchStudioReviews(env, studioSlug) {
+  if (!env.DB || !studioSlug) return [];
+  try {
+    const rows = await env.DB.prepare(
+      'SELECT id, rating, comment, created_at FROM studio_reviews WHERE studio_slug = ? ORDER BY created_at DESC LIMIT 50'
+    ).bind(studioSlug).all();
+    return rows.results || [];
+  } catch {
+    return [];
+  }
 }
 
 function jsonRes(data, status = 200) {
@@ -502,10 +528,29 @@ async function runBlogScheduler(env) {
       const status = sched.auto_publish ? 'published' : 'draft';
       const publishedAt = sched.auto_publish ? now : null;
 
-      await env.DB.prepare(
+      const inserted = await env.DB.prepare(
         `INSERT INTO blog_posts (slug, title, excerpt, body_html, topic, status, image_keyword, published_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(slug, title, excerpt, body_html, topic, status, image_keyword, publishedAt, now, now).run();
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+      )
+        .bind(slug, title, excerpt, body_html, topic, status, image_keyword, publishedAt, now, now)
+        .first();
+
+      if (status === 'published' && inserted?.id != null) {
+        const site = String(env.PUBLIC_SITE_URL || '').trim().replace(/\/$/, '');
+        if (site) {
+          try {
+            await notifySubscribersBlogPublished(env, {
+              postId: inserted.id,
+              siteOrigin: site,
+              slug,
+              title,
+              excerpt,
+            });
+          } catch (e) {
+            console.error('notifySubscribersBlogPublished (scheduler)', e);
+          }
+        }
+      }
 
       // Compute next run time
       let nextRun = now;
@@ -940,11 +985,16 @@ async function handleAdminGenerateBlog(request, env) {
   return jsonRes({ post: result });
 }
 
-async function handleAdminPatchBlog(request, env, id) {
+async function handleAdminPatchBlog(request, env, id, ctx) {
   await requireAuth(request, env);
   const body   = await request.json().catch(() => ({}));
   const status = body.status;
   if (!['published', 'draft'].includes(status)) return jsonRes({ error: 'Invalid status' }, 400);
+
+  const prev = await env.DB.prepare('SELECT status, slug, title, excerpt FROM blog_posts WHERE id = ?')
+    .bind(id)
+    .first();
+  if (!prev) return jsonRes({ error: 'not_found' }, 404);
 
   const now = Math.floor(Date.now() / 1000);
   const publishedAt = status === 'published' ? now : null;
@@ -952,6 +1002,19 @@ async function handleAdminPatchBlog(request, env, id) {
   await env.DB.prepare(
     'UPDATE blog_posts SET status = ?, published_at = ?, updated_at = ? WHERE id = ?'
   ).bind(status, publishedAt, now, id).run();
+
+  if (status === 'published' && prev.status !== 'published') {
+    const origin = new URL(request.url).origin;
+    const notify = notifySubscribersBlogPublished(env, {
+      postId: id,
+      siteOrigin: origin,
+      slug: prev.slug,
+      title: prev.title,
+      excerpt: prev.excerpt,
+    });
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(notify);
+    else notify.catch((e) => console.error('notifySubscribersBlogPublished', e));
+  }
 
   return jsonRes({ ok: true });
 }
@@ -1300,6 +1363,175 @@ const CLASS_GUIDE = {
   },
 };
 
+// Maps URL tag slug → display info for city landing pages (derived from CLASS_GUIDE)
+const CITY_PAGE_TAGS = Object.fromEntries(
+  Object.entries(CLASS_GUIDE).map(([slug, c]) => [slug, {
+    tagName: c.name,
+    sanityTag: c.filter,
+    icon: c.icon,
+    color: c.color,
+    bg: c.bg,
+  }])
+);
+// Longest slugs first so "hot-yoga" matches before "yoga"
+const CITY_PAGE_TAG_SLUGS = Object.keys(CITY_PAGE_TAGS).sort((a, b) => b.length - a.length);
+
+async function handleCityPage(request, env, tagSlug, locationSlug) {
+  const url = new URL(request.url);
+  const origin = String(url.origin || '').replace(/\/$/, '') || 'https://studiolocater.com';
+  const tagInfo = CITY_PAGE_TAGS[tagSlug];
+  if (!tagInfo) {
+    return new Response(buildStudioNotFoundHtml(`${url.origin}/`), {
+      status: 404,
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=120' }
+    });
+  }
+  const projectId = env.SANITY_PROJECT_ID || 't0z5ndwm';
+  const dataset   = env.SANITY_DATASET    || 'production';
+  try {
+    // Try city first; fall back to neighborhood
+    let studios = await fetchStudiosByCity(locationSlug, tagInfo.sanityTag, projectId, dataset);
+    if (studios.length === 0) {
+      studios = await fetchStudiosByNeighborhood(locationSlug, tagInfo.sanityTag, projectId, dataset);
+    }
+    if (studios.length === 0) {
+      return new Response(buildStudioNotFoundHtml(`${url.origin}/`), {
+        status: 404,
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' }
+      });
+    }
+    const locationDisplayName = citySlugToDisplay(locationSlug);
+    const html = buildCityPageHtml(studios, {
+      tagSlug, tagName: tagInfo.tagName, tagIcon: tagInfo.icon,
+      tagColor: tagInfo.color, tagBg: tagInfo.bg,
+      citySlug: locationSlug, cityDisplayName: locationDisplayName, origin,
+    });
+    return new Response(html, {
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=3600' }
+    });
+  } catch {
+    return new Response('Server error', { status: 500, headers: { 'Content-Type': 'text/plain' } });
+  }
+}
+
+async function handleNearMePage(request, env, tagSlug) {
+  const url = new URL(request.url);
+  const origin = String(url.origin || '').replace(/\/$/, '') || 'https://studiolocater.com';
+  const tagInfo = CITY_PAGE_TAGS[tagSlug];
+  if (!tagInfo) return new Response('Not found', { status: 404 });
+
+  const canonicalUrl = `${origin}/${tagSlug}-studios-near-me`;
+  const title = `${tagInfo.tagName} Studios Near Me | Studio Locater`;
+  const metaDesc = `Find ${tagInfo.tagName.toLowerCase()} studios near your current location. Studio Locater detects your city and shows you the best local options.`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escHtml(title)}</title>
+  <meta name="description" content="${escHtml(metaDesc)}">
+  <link rel="canonical" href="${escHtml(canonicalUrl)}">
+  <meta property="og:title" content="${escHtml(title)}">
+  <meta property="og:description" content="${escHtml(metaDesc)}">
+  <meta property="og:url" content="${escHtml(canonicalUrl)}">
+  <link rel="icon" href="/favicon.svg?v=6" type="image/svg+xml" sizes="any">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{--blush:#F9EAEA;--rose-deep:#C97E84;--lavender-deep:#B39DDB;
+      --plum:#3D2B3D;--plum-mid:#6B4C6B;--plum-light:#9E7E9E;--off-white:#FDF8F8;--border:#F0DCE0;--shadow:rgba(61,43,61,0.08);}
+    body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--plum);line-height:1.6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+    .card{background:#fff;border:1px solid var(--border);border-radius:24px;padding:48px 40px;max-width:460px;width:100%;text-align:center;box-shadow:0 8px 40px var(--shadow);}
+    .icon{width:80px;height:80px;border-radius:22px;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 24px;}
+    h1{font-family:'Playfair Display',serif;font-size:clamp(24px,4vw,30px);font-weight:700;color:var(--plum);margin-bottom:10px;line-height:1.2;}
+    h1 em{font-style:italic;color:var(--rose-deep);}
+    .sub{font-size:15px;color:var(--plum-mid);margin-bottom:28px;}
+    .status{font-size:14px;color:var(--plum-light);margin-bottom:20px;min-height:22px;}
+    .spinner{display:inline-block;width:16px;height:16px;border:2px solid #eee;border-top-color:var(--rose-deep);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .manual-form{margin-top:20px;display:none;}
+    .manual-form p{font-size:13px;color:var(--plum-light);margin-bottom:10px;}
+    .manual-input{width:100%;border:1.5px solid var(--border);border-radius:12px;padding:11px 14px;font-size:15px;font-family:inherit;color:var(--plum);outline:none;margin-bottom:10px;}
+    .manual-input:focus{border-color:var(--rose-deep);}
+    .manual-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
+      background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));color:#fff;border:none;
+      border-radius:50px;padding:12px 28px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .2s;}
+    .manual-btn:hover{opacity:.88;}
+    .back{display:block;margin-top:20px;font-size:13px;color:var(--rose-deep);text-decoration:none;}
+    .back:hover{text-decoration:underline;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon" style="background:${tagInfo.bg}"><i class="fa-solid ${tagInfo.icon}" style="color:${tagInfo.color}"></i></div>
+    <h1>Find <em>${escHtml(tagInfo.tagName)}</em> Studios<br>Near You</h1>
+    <p class="sub">We'll detect your city and show you the best nearby studios.</p>
+    <p class="status" id="status"><span class="spinner"></span> Detecting your location…</p>
+    <div class="manual-form" id="manual-form">
+      <p>Or enter your city:</p>
+      <input class="manual-input" id="city-input" type="text" placeholder="e.g. Austin, Chicago, Brooklyn" autocomplete="off">
+      <button class="manual-btn" id="manual-btn"><i class="fa-solid fa-magnifying-glass"></i> Find Studios</button>
+    </div>
+    <a class="back" href="/">← Browse all studios</a>
+  </div>
+  <script>
+  (function(){
+    var tagSlug=${JSON.stringify(tagSlug)};
+    var statusEl=document.getElementById('status');
+    var manualForm=document.getElementById('manual-form');
+    function slugify(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
+    function goTo(citySlug){if(citySlug)window.location.replace('/'+tagSlug+'-studios-'+citySlug);}
+    function showManual(msg){statusEl.textContent=msg||'';manualForm.style.display='block';}
+    function onGeoSuccess(pos){
+      statusEl.innerHTML='<span class="spinner"></span> Finding studios…';
+      fetch('/api/geocode?lat='+pos.coords.latitude+'&lng='+pos.coords.longitude)
+        .then(function(r){return r.json();})
+        .then(function(d){d.city?goTo(d.city):showManual('Could not identify your city.');})
+        .catch(function(){showManual('Location lookup failed.');});
+    }
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(onGeoSuccess,function(){showManual('Location access denied.');},{timeout:8000});
+    } else {showManual('Geolocation not supported.');}
+    document.getElementById('manual-btn').addEventListener('click',function(){
+      var c=(document.getElementById('city-input').value||'').trim();if(c)goTo(slugify(c));
+    });
+    document.getElementById('city-input').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('manual-btn').click();});
+  })();
+  </script>
+</body>
+</html>`;
+
+  return new Response(html, {
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=86400' }
+  });
+}
+
+async function handleGeocode(request, env) {
+  const url = new URL(request.url);
+  const lat = url.searchParams.get('lat');
+  const lng = url.searchParams.get('lng');
+  if (!lat || !lng || isNaN(+lat) || isNaN(+lng)) return jsonRes({ error: 'invalid_coords' }, 400);
+  const key = String(env.GOOGLE_API_KEY || '').trim();
+  if (!key) return jsonRes({ error: 'no_api_key' }, 503);
+  try {
+    const geoUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${encodeURIComponent(lat)},${encodeURIComponent(lng)}&result_type=locality&key=${encodeURIComponent(key)}`;
+    const r = await fetch(geoUrl);
+    if (!r.ok) return jsonRes({ error: 'geocode_failed' }, 502);
+    const data = await r.json();
+    if (data.status !== 'OK' || !Array.isArray(data.results) || !data.results.length) return jsonRes({ error: 'not_found' }, 404);
+    const components = data.results[0].address_components || [];
+    const locality = components.find(c => Array.isArray(c.types) && c.types.includes('locality'));
+    if (!locality) return jsonRes({ error: 'no_locality' }, 404);
+    return jsonRes({ city: cityToSlug(locality.long_name), cityName: locality.long_name });
+  } catch {
+    return jsonRes({ error: 'geocode_error' }, 500);
+  }
+}
+
 const CLASS_PAGE_CSS = `
   *{box-sizing:border-box;margin:0;padding:0}
   :root{
@@ -1628,7 +1860,23 @@ async function handleSitemapXml(request, env) {
     }
 
     const classSlugs = [...CLASS_GUIDE_SLUGS];
-    const xml = buildSitemapXml(origin, slugs, { blogSlugs, classSlugs });
+
+    let cityPagePaths = [];
+    try {
+      const combos = await fetchAllCityTagCombos(projectId, dataset);
+      // Build tag filter→slug reverse map (filter value → first matching CLASS_GUIDE slug)
+      const filterToSlug = new Map();
+      for (const [slug, c] of Object.entries(CLASS_GUIDE)) {
+        if (!filterToSlug.has(c.filter)) filterToSlug.set(c.filter, slug);
+      }
+      cityPagePaths = combos
+        .filter(({ tag }) => filterToSlug.has(tag))
+        .map(({ citySlug, tag }) => `/${filterToSlug.get(tag)}-studios-${citySlug}`);
+    } catch {
+      cityPagePaths = [];
+    }
+
+    const xml = buildSitemapXml(origin, slugs, { blogSlugs, classSlugs, cityPagePaths });
     const { bytes, headers } = sitemapResponseHeaders(xml, 600);
     if (method === 'HEAD') {
       return new Response(null, { status: 200, headers });
@@ -1657,7 +1905,7 @@ async function handleSitemapXml(request, env) {
 
 export default {
   // ── HTTP requests ─────────────────────────────────────────────────────────
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url  = new URL(request.url);
     const path = canonicalPathname(url);
     const method = request.method.toUpperCase();
@@ -1718,6 +1966,61 @@ export default {
       }
     }
 
+    // ── Geocode API (for near-me pages) ────────────────────────────────────
+    if (path === '/api/geocode' && method === 'GET') return handleGeocode(request, env);
+
+    // ── Studio reviews ──────────────────────────────────────────────────────
+    {
+      const rm = path.match(/^\/api\/reviews\/([^/]+)$/);
+      if (rm) {
+        const studioSlug = decodeURIComponent(rm[1]);
+        if (method === 'GET') {
+          try {
+            const rows = env.DB
+              ? (await env.DB.prepare(
+                  'SELECT id, rating, comment, created_at FROM studio_reviews WHERE studio_slug = ? ORDER BY created_at DESC LIMIT 50'
+                ).bind(studioSlug).all()).results || []
+              : [];
+            const avg = rows.length ? Math.round((rows.reduce((s, r) => s + r.rating, 0) / rows.length) * 10) / 10 : null;
+            return jsonRes({ reviews: rows, count: rows.length, avg });
+          } catch { return jsonRes({ reviews: [], count: 0, avg: null }); }
+        }
+        if (method === 'POST') {
+          const session = await (async () => { try { return await getUserSession(env, request); } catch { return null; } })();
+          if (!session) return jsonRes({ error: 'auth_required' }, 401);
+          let body;
+          try { body = await request.json(); } catch { return jsonRes({ error: 'bad_json' }, 400); }
+          const rating = Number(body.rating);
+          if (!Number.isInteger(rating) || rating < 1 || rating > 5) return jsonRes({ error: 'invalid_rating' }, 400);
+          const comment = body.comment ? String(body.comment).trim().slice(0, 800) : null;
+          const now = Math.floor(Date.now() / 1000);
+          try {
+            await env.DB.prepare(
+              `INSERT INTO studio_reviews (studio_slug, user_id, user_email, rating, comment, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(studio_slug, user_id) DO UPDATE SET rating=excluded.rating, comment=excluded.comment, updated_at=excluded.updated_at`
+            ).bind(studioSlug, session.userId, session.email, rating, comment, now, now).run();
+            return jsonRes({ ok: true });
+          } catch (e) { return jsonRes({ error: String(e && e.message ? e.message : e) }, 500); }
+        }
+      }
+    }
+
+    if ((path === '/api/mindbody/studio' || path === '/api/mindbody/schedule') && method === 'GET') {
+      try {
+        const out = await handleMindbodyStudioApi(url, env, { fetchStudioBySlug });
+        return new Response(JSON.stringify(out.body), {
+          status: out.status,
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Cache-Control': 'public, max-age=120',
+          },
+        });
+      } catch (e) {
+        return jsonRes({ error: String(e && e.message ? e.message : e) }, 500);
+      }
+    }
+
     // ── Admin page ──────────────────────────────────────────────────────────
     if (path === '/admin') return handleAdminPage(request, env);
 
@@ -1751,7 +2054,7 @@ export default {
       if (bm) {
         const id = parseInt(bm[1]);
         try {
-          if (method === 'PATCH')  return await handleAdminPatchBlog(request, env, id);
+          if (method === 'PATCH')  return await handleAdminPatchBlog(request, env, id, ctx);
           if (method === 'DELETE') return await handleAdminDeleteBlog(request, env, id);
         } catch (r) { return r instanceof Response ? r : jsonRes({ error: String(r) }, 500); }
       }
@@ -1809,6 +2112,17 @@ export default {
     // ── Sitemap ─────────────────────────────────────────────────────────────
     if (path === '/sitemap.xml') {
       return handleSitemapXml(request, env);
+    }
+
+    // ── City landing pages: /{tagSlug}-studios-{citySlug} ───────────────────
+    for (const tagSlug of CITY_PAGE_TAG_SLUGS) {
+      const prefix = `/${tagSlug}-studios-`;
+      if (path.startsWith(prefix)) {
+        const citySlug = path.slice(prefix.length);
+        if (/^[a-z][a-z0-9-]*$/.test(citySlug)) {
+          return handleCityPage(request, env, tagSlug, citySlug);
+        }
+      }
     }
 
     // ── Studio detail pages ─────────────────────────────────────────────────

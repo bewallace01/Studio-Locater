@@ -15,12 +15,14 @@
   <meta property="og:url" content="https://studiolocater.com/">
   <meta property="og:title" content="Studio Locater | Find Yoga, Pilates &amp; Fitness Studios Near You">
   <meta property="og:description" content="Discover 2,400+ yoga, pilates, and wellness studios across the U.S. Browse classes, read reviews, and book your next workout.">
-  <meta property="og:image" content="https://studiolocater.com/favicon.svg">
+  <meta property="og:image" content="https://studiolocater.com/og-image.svg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <meta property="og:locale" content="en_US">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Studio Locater | Find Yoga, Pilates &amp; Fitness Studios Near You">
   <meta name="twitter:description" content="Discover 2,400+ yoga, pilates, and wellness studios across the U.S. Browse classes, read reviews, and find your perfect fitness studio.">
-  <meta name="twitter:image" content="https://studiolocater.com/favicon.svg">
+  <meta name="twitter:image" content="https://studiolocater.com/og-image.svg">
   <script type="application/ld+json">
   {"@context":"https://schema.org","@graph":[
     {"@type":"WebSite","@id":"https://studiolocater.com/#website","url":"https://studiolocater.com/","name":"Studio Locater","description":"Directory of yoga, pilates, and wellness fitness studios across the United States.","publisher":{"@id":"https://studiolocater.com/#organization"}},
@@ -585,6 +587,7 @@
     .t-lagree     { background:#EDE8F5;color:#5B4B8A; }
     .t-solidcore  { background:#E8F4F4;color:#1E6B6B; }
     .t-niche      { background:#F5EEF8;color:#6B4C7A; }
+    .t-boxing,.t-strength,.t-hiit,.t-cycling,.t-dance,.t-stretch { background:#EDE4F5;color:#5C4A6B; }
     .card-footer { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);flex-wrap:wrap; }
     .card-actions { display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto; }
     .card-dist { font-size:12px;color:var(--plum-light);display:flex;align-items:center;gap:4px; }
@@ -676,6 +679,9 @@
     .form-btn:hover { opacity:.9;transform:translateY(-1px); }
     .form-hint { text-align:center;font-size:12px;color:var(--plum-light);margin-top:14px; }
     .form-hint a { color:var(--rose-deep);cursor:pointer;font-weight:600; }
+    .signup-blog-row { margin-bottom:14px; }
+    .signup-blog-label { display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--plum-mid);line-height:1.45;cursor:pointer;font-weight:500; }
+    .signup-blog-label input { margin-top:3px;width:16px;height:16px;accent-color:var(--rose-deep);flex-shrink:0;cursor:pointer; }
     .signup-perks { display:flex;flex-direction:column;gap:8px;margin-bottom:24px; }
     .perk { display:flex;align-items:center;gap:10px;font-size:13px;color:var(--plum-mid); }
     .perk i { color:var(--rose-deep);font-size:13px; }
@@ -1070,6 +1076,12 @@
         <div class="form-group"><label class="form-label">Last Name</label><input id="signupLastName" class="form-input" type="text" placeholder="Chen" autocomplete="family-name"></div>
       </div>
       <div class="form-group"><label class="form-label">Email</label><input id="signupEmail" class="form-input" type="email" placeholder="you@gmail.com" autocomplete="email"></div>
+      <div class="form-group signup-blog-row">
+        <label class="signup-blog-label" for="signupBlogEmail">
+          <input type="checkbox" id="signupBlogEmail" name="blogEmail">
+          <span>Email me when new blog posts are published</span>
+        </label>
+      </div>
       <div class="form-group">
         <label class="form-label">Favourite Class Type</label>
         <select id="signupClassType" class="form-select">
@@ -1246,6 +1258,12 @@ async function nominatimReverseGeocode(lat, lng) {
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 function pickIconFromTags(tags) {
+  if (tags.includes('Boxing')) return 'fa-hand-fist';
+  if (tags.includes('Strength')) return 'fa-dumbbell';
+  if (tags.includes('HIIT')) return 'fa-bolt-lightning';
+  if (tags.includes('Cycling')) return 'fa-person-biking';
+  if (tags.includes('Dance')) return 'fa-music';
+  if (tags.includes('Stretch')) return 'fa-person-rays';
   if (tags.includes('Niche')) return 'fa-wand-magic-sparkles';
   if (tags.includes('Solidcore')) return 'fa-bolt';
   if (tags.includes('Lagree')) return 'fa-grip-lines-vertical';
@@ -1547,6 +1565,117 @@ function matchesLagreeMegaformerFamily(textLower) {
 }
 
 /**
+ * Yoga pill: studios that actually offer yoga (incl. hot / vinyasa / flow) — not Lagree, Solidcore,
+ * pilates-first, or barre-only venues that don’t teach yoga.
+ */
+function matchesYogaFilter(tags, blob) {
+  const tagSet = new Set((tags || []).map((t) => String(t)));
+  if (tagSet.has('Lagree') || tagSet.has('Solidcore')) return false;
+  if (matchesLagreeMegaformerFamily(blob)) return false;
+
+  if (tagSet.has('Pilates') && !tagSet.has('Yoga') && !tagSet.has('Hot Yoga')) return false;
+
+  if (
+    /\b(?:club\s*)?pilates\b|reformer\s*pilates|mat\s*pilates|classical\s*pilates\b/i.test(blob) &&
+    !/\byoga\b|vinyasa|hatha|ashtanga|hot\s*yoga|yin\s*yoga|power\s*yoga|restorative|kundalini|namaste/i.test(blob)
+  ) {
+    return false;
+  }
+
+  if (
+    tagSet.has('Barre') &&
+    !tagSet.has('Yoga') &&
+    !tagSet.has('Hot Yoga') &&
+    /\bbarre\b|pure\s*barre/i.test(blob) &&
+    !/\byoga\b|barre\s*[+&]\s*yoga|yoga\s*[+&]\s*barre/i.test(blob)
+  ) {
+    return false;
+  }
+
+  if (tagSet.has('Yoga') || tagSet.has('Hot Yoga')) return true;
+
+  if (
+    /\byoga\b|vinyasa|hatha|ashtanga|yin\s*yoga|\byin\b(?=\s|$)|kundalini|namaste|restorative|iyengar|anusara|jivamukti|power\s*yoga/.test(blob) ||
+    /\bflow\s*yoga\b|vinyasa\s*flow|power\s*flow|rocket\s*yoga/.test(blob)
+  ) {
+    return true;
+  }
+
+  return (tags || []).some((t) => {
+    const u = String(t).toLowerCase().trim();
+    if (/lagree|solidcore|megaformer|mega[\s-]?former/.test(u)) return false;
+    if (u === 'pilates' || u === 'reformer' || u === 'barre' || u === 'niche') return false;
+    if (u === 'yoga' || u === 'hot yoga') return true;
+    if (u.endsWith(' yoga') || /^yoga[\s\-]/.test(u)) return true;
+    return false;
+  });
+}
+
+/**
+ * Modality text probes — shared by tag inference (studio name) and filter pills (full blob).
+ * Keep patterns aligned so a studio tagged from its name still matches the same pill.
+ */
+function modalityHotYogaText(t) {
+  return /hot[\s\d&]*yoga|bikram|heated\s*yoga|warm\s*yoga|hot\s+8|hot\s+\d/i.test(t);
+}
+function modalityCyclingText(t) {
+  if (/\byoga\s*spin\b|spin\s*yoga\b/i.test(t)) return false;
+  return /\bsoul\s*cycle|\bcyclebar\b|peloton|\bindoor\s*cycling\b|\bcycling\s+studio\b|the\s+ride|swerve|ryde|rhythm\s+cycling|\bspin\b|\bcycling\b|bike\s+class|stationary\s+bike/i.test(t);
+}
+function modalityBoxingText(t) {
+  return /\bboxing\b|kick\s*boxing|kickboxing|muay[\s-]*thai|punch|title\s*boxing|rumble\s*boxing|eos\s*fitness|fight\s*camp|mayweather|shadow\s*box|glove\s*work|\brumble\b(?!\s*roller)/i.test(t);
+}
+function modalityStrengthText(t) {
+  if (/\bstrength\s+yoga\b|yoga\s+for\s+strength/i.test(t)) return false;
+  return /\bcrossfit\b|strength\s*(?:training|class|studio)|\bstrength\b(?!\s+yoga)|weightlifting|olympic\s*lift|kettlebell|barbell|functional\s*fitness|power\s*lifting|deadlift|bodybuilding|strongman|f45|f-45|\bsports\s*performance\b|squat\s*rack|iron\s*works|lift\s+class|lifting\s+club|weight\s+room/i.test(t);
+}
+function modalityHiitText(t) {
+  return /\bhiit\b|high[\s-]intensity|interval|tabata|boot\s*camp|bootcamp|orange\s*theory|orangetheory|\botf\b|f45|f-45|barry['']?s|sweat440|burn\s+boot|shred415|9round/i.test(t);
+}
+function modalityDanceText(t) {
+  return /\bdance\b|zumba|latin\s*dance|hip[\s-]*hop|cardio\s*dance|dance\s*cardio|jazzercise|bollywood|ballet\s*fit|jazz\s*dance/i.test(t);
+}
+function modalityStretchText(t) {
+  return /\bstretch|mobility\s*class|flexibility\s*class|assisted\s*stretch|recovery\s+studio|stretch\s*lab|stretchzone|stretch\s*zone/i.test(t);
+}
+function modalityBarreText(t) {
+  return /\bbarre\b|pure\s*barre|barre3|bar\s+method|xtend/i.test(t);
+}
+function modalityInfraredText(t) {
+  return /infrared/i.test(t);
+}
+function modalityMeditationText(t) {
+  return /meditat|mindful|zen\s*den|sound\s*bath|breathwork|guided\s+meditation/i.test(t);
+}
+function modalityPilatesText(t) {
+  if (matchesLagreeMegaformerFamily(t) || /mega[\s-]?former|megaformer/i.test(t)) return false;
+  return /\bpilates\b|reformer|merrithew|club\s*pilates|body\s*lines|wunda|tower\s+pilates|mat\s+pilates/i.test(t);
+}
+/** TRX / aerial / pole / rowing — not boxing or bootcamp (those use their own pills). */
+function modalityNicheEquipmentText(t) {
+  return /aerial|trx\b|bungee|silks|lyra|hoop|tone\s*house|battle\s*rope|pole\s+(fitness|dance|sport)|parkour|assault\s*bike|bungee\s*fitness|slackline|circus\s+fit|rowing\s+studio|studio\s+row|rowhouse|cityrow|\berg\b|water\s+rower/i.test(
+    t
+  );
+}
+/**
+ * Niche pill: specialty equipment & formats — excludes studios that match Boxing / HIIT / Cycling / etc.
+ * unless they also have clear niche equipment (e.g. TRX at a boxing gym).
+ */
+function modalityNicheBlob(tags, blob) {
+  const b = String(blob || '').toLowerCase();
+  const ts = new Set((tags || []).map((x) => String(x)));
+  if (ts.has('Lagree') || ts.has('Solidcore')) return false;
+  if (modalityNicheEquipmentText(b)) return true;
+  if (ts.has('Niche')) {
+    if (modalityBoxingText(b) || modalityHiitText(b) || modalityCyclingText(b) || modalityStrengthText(b) || modalityDanceText(b) || modalityStretchText(b)) {
+      return false;
+    }
+    return /kettlebell|rowing|tone\s*house|sprint\b(?!\s*tri)|sculpt(?!\s*society)/i.test(b);
+  }
+  return false;
+}
+
+/**
  * Class-type search: one query expands to sibling terms per filter “family” (pill labels).
  * Keep clusters tight to reduce false positives; Lagree vs Pilates stays split by keywords.
  */
@@ -1680,16 +1809,18 @@ function studioMatchesClassQuery(s, queryText) {
   return expandClassSearchNeedles(q).some(n => n && hay.includes(n));
 }
 
-/** Derive display/filter tags when CMS did not send any (Google-only rows). */
+/**
+ * Derive modality tags from the studio name. Merged with Sanity `tags` when present so
+ * CMS labels stay authoritative but name cues still fill Boxing / Strength / HIIT / etc.
+ */
 function inferTagsFromNameAndCms(name, cmsTags) {
-  if (Array.isArray(cmsTags) && cmsTags.length) return [...new Set(cmsTags)];
   const n = String(name || '').toLowerCase();
   const tags = [];
 
-  if (/hot[\s\d&]*yoga|bikram|heated\s*yoga|warm\s*yoga|hot\s+8|hot\s+\d/.test(n)) tags.push('Hot Yoga');
-  if (/infrared/.test(n) && !tags.includes('Hot Yoga')) tags.push('Infrared');
-  if (/barre|pure\s*barre/.test(n)) tags.push('Barre');
-  if (/meditat|mindful|sound\s*bath|breathwork/.test(n)) tags.push('Meditation');
+  if (modalityHotYogaText(n)) tags.push('Hot Yoga');
+  if (modalityInfraredText(n) && !tags.includes('Hot Yoga')) tags.push('Infrared');
+  if (modalityBarreText(n)) tags.push('Barre');
+  if (modalityMeditationText(n)) tags.push('Meditation');
 
   const isSolidcoreBrand = /solid[\s-]?core|solidcore/.test(n);
   const isLagreeFamily = isSolidcoreBrand || matchesLagreeMegaformerFamily(n);
@@ -1698,19 +1829,28 @@ function inferTagsFromNameAndCms(name, cmsTags) {
     if (isSolidcoreBrand || /\bslt\b|^slt\s|s\.l\.t\./.test(n)) tags.push('Solidcore');
   }
 
-  if (!isLagreeFamily && /pilates|reformer|merrithew|club\s*pilates|body\s*lines/.test(n)) tags.push('Pilates');
+  if (!isLagreeFamily && modalityPilatesText(n)) tags.push('Pilates');
 
   if (
     !isLagreeFamily &&
-    /yoga|vinyasa|hatha|ashtanga|yin|kundalini|power\s*yoga|restorative|iyengar|anusara|jivamukti|namaste/.test(n)
+    /\byoga\b|vinyasa|hatha|ashtanga|yin\s*yoga|yin\s*&|kundalini|power\s*yoga|restorative|iyengar|anusara|jivamukti|namaste/.test(n)
   ) {
     if (!tags.includes('Hot Yoga')) tags.push('Yoga');
   }
 
-  if (/aerial|trx|bungee|boxing|bootcamp|rumble|rowing|tone\s*house|kettlebell|spin\b|cycle\b/.test(n)) tags.push('Niche');
+  if (modalityCyclingText(n)) tags.push('Cycling');
+  if (modalityBoxingText(n)) tags.push('Boxing');
+  if (modalityStrengthText(n)) tags.push('Strength');
+  if (modalityHiitText(n)) tags.push('HIIT');
+  if (modalityDanceText(n)) tags.push('Dance');
+  if (modalityStretchText(n)) tags.push('Stretch');
 
-  if (!tags.length) tags.push('Niche');
-  return [...new Set(tags)];
+  if (modalityNicheEquipmentText(n)) tags.push('Niche');
+
+  if (!tags.length && !(Array.isArray(cmsTags) && cmsTags.length)) tags.push('Niche');
+  const fromName = [...new Set(tags)];
+  if (Array.isArray(cmsTags) && cmsTags.length) return [...new Set([...cmsTags, ...fromName])];
+  return fromName;
 }
 
 function googleMergedRowToStudio(row, idx) {
@@ -1839,7 +1979,8 @@ async function loadStudiosNear(lat, lng, label, searchOpts = {}) {
 const TAG_CLASSES = {
   "Pilates":"t-pilates","Yoga":"t-yoga","Reformer":"t-reformer",
   "Hot Yoga":"t-hot","Infrared":"t-infrared","Barre":"t-barre",
-  "Lagree":"t-lagree","Solidcore":"t-solidcore","Niche":"t-niche","Meditation":"t-meditation"
+  "Lagree":"t-lagree","Solidcore":"t-solidcore","Niche":"t-niche","Meditation":"t-meditation",
+  "Boxing":"t-boxing","Strength":"t-strength","HIIT":"t-hiit","Cycling":"t-cycling","Dance":"t-dance","Stretch":"t-stretch"
 };
 
 const EXPERIENCE_LABELS = {
@@ -2013,41 +2154,27 @@ function studioMatchesActiveFilter(s) {
   const f = state.activeFilter;
   if (f === 'All') return true;
   const tags = s.tags || [];
-  if (tags.includes(f)) return true;
   const blob = studioMatchingText(s);
   const fLower = f.toLowerCase();
-  /* Full-text shortcut for every filter except Yoga/Pilates — those need Lagree/megaformer rules below. */
-  if (f !== 'Yoga' && f !== 'Pilates' && blob.includes(fLower)) return true;
 
   if (f === 'Yoga') {
-    if (matchesLagreeMegaformerFamily(blob)) return false;
-    return (
-      /\byoga\b|vinyasa|hatha|ashtanga|yin|kundalini|namaste|restorative|iyengar|anusara|jivamukti|power\s*yoga/.test(blob) ||
-      /\bflow\s*yoga\b|vinyasa\s*flow|power\s*flow/.test(blob) ||
-      tags.some(t => /yoga|hot yoga/i.test(t))
-    );
+    return matchesYogaFilter(tags, blob);
   }
   if (f === 'Hot Yoga') {
-    return (
-      tags.includes('Hot Yoga') ||
-      /hot[\s\d&]*yoga|bikram|heated\s*yoga|warm\s*yoga|hot\s+8|hot\s+\d/.test(blob)
-    );
+    return tags.includes('Hot Yoga') || modalityHotYogaText(blob);
   }
   if (f === 'Pilates') {
     if (tags.includes('Lagree') || tags.includes('Solidcore')) return tags.includes('Pilates');
-    return (
-      tags.includes('Pilates') ||
-      (!matchesLagreeMegaformerFamily(blob) && /\bpilates\b|reformer|merrithew|club\s*pilates/.test(blob))
-    );
+    return tags.includes('Pilates') || modalityPilatesText(blob);
   }
   if (f === 'Barre') {
-    return tags.includes('Barre') || /barre|pure\s*barre/.test(blob);
+    return tags.includes('Barre') || modalityBarreText(blob);
   }
   if (f === 'Infrared') {
-    return tags.includes('Infrared') || /infrared/.test(blob);
+    return tags.includes('Infrared') || modalityInfraredText(blob);
   }
   if (f === 'Meditation') {
-    return tags.includes('Meditation') || /meditat|mindful|zen\s*den|sound\s*bath|breathwork/.test(blob);
+    return tags.includes('Meditation') || modalityMeditationText(blob);
   }
   if (f === 'Lagree') {
     if (tags.includes('Lagree')) return true;
@@ -2058,26 +2185,30 @@ function studioMatchesActiveFilter(s) {
     return /solid[\s-]?core|solidcore|\bslt\b|s\.l\.t\.|slow\s*twitch/.test(blob);
   }
   if (f === 'Niche') {
-    return /aerial|trx|bungee|rowing|boxing|bootcamp|kick|rumble|tone\s*house|kettlebell|sprint|sculpt(?!\s*society)/.test(blob);
+    return modalityNicheBlob(tags, blob);
   }
   if (f === 'HIIT') {
-    return tags.includes('HIIT') || /\bhiit\b|high[\s-]intensity|interval|tabata|bootcamp|orange\s*theory|barry['']?s/.test(blob);
+    return tags.includes('HIIT') || modalityHiitText(blob);
   }
   if (f === 'Cycling') {
-    return tags.includes('Cycling') || /\bcycling\b|\bspin\b|spin\s*class|indoor\s*cycling|soul\s*cycle|peloton|bike\s*class|stationary\s*bike/.test(blob);
+    return tags.includes('Cycling') || modalityCyclingText(blob);
   }
   if (f === 'Boxing') {
-    return tags.includes('Boxing') || /\bboxing\b|kickboxing|muay[\s-]*thai|punching|title\s*boxing|rumble\s*boxing|eos\s*fitness/.test(blob);
+    return tags.includes('Boxing') || modalityBoxingText(blob);
   }
   if (f === 'Dance') {
-    return tags.includes('Dance') || /\bdance\b|zumba|latin\s*dance|hip[\s-]*hop\s*fit|cardio\s*dance|dance\s*cardio/.test(blob);
+    return tags.includes('Dance') || modalityDanceText(blob);
   }
   if (f === 'Stretch') {
-    return tags.includes('Stretch') || /\bstretch|mobility\s*class|flexibility\s*class|assisted\s*stretch|recovery\s*studio/.test(blob);
+    return tags.includes('Stretch') || modalityStretchText(blob);
   }
   if (f === 'Strength') {
-    return tags.includes('Strength') || /\bcrossfit\b|strength\s*(?:training|class|studio)|weightlifting|olympic\s*lift|kettlebell\s*class|barbell\s*club|functional\s*fitness/.test(blob);
+    return tags.includes('Strength') || modalityStrengthText(blob);
   }
+
+  if (tags.includes(f)) return true;
+  /* Full-text shortcut — Yoga handled above; Pilates kept narrow to avoid substring noise. */
+  if (f !== 'Pilates' && blob.includes(fLower)) return true;
   return false;
 }
 
@@ -2724,10 +2855,12 @@ function trackSignupEvent() {
   const classType = classEl && classEl.value ? String(classEl.value) : '';
   const firstName = fnEl && fnEl.value ? String(fnEl.value).trim() : '';
   const lastName = lnEl && lnEl.value ? String(lnEl.value).trim() : '';
+  const blogEl = document.getElementById('signupBlogEmail');
   const metadata = {};
   if (classType) metadata.classType = classType;
   if (firstName) metadata.firstName = firstName;
   if (lastName) metadata.lastName = lastName;
+  if (blogEl) metadata.blogPostsEmail = !!blogEl.checked;
   const payload = {
     source: 'homepage',
     metadata: Object.keys(metadata).length ? metadata : undefined
@@ -2753,12 +2886,14 @@ async function requestMagicLink() {
     btn.textContent = 'Sending…';
   }
   trackSignupEvent();
+  const blogChk = document.getElementById('signupBlogEmail');
+  const email_pref = blogChk && blogChk.checked ? 'instant' : 'none';
   try {
     const r = await fetch('/api/auth/magic-link', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, email_pref }),
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) {

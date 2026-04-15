@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="Studio Locater — Find Your Perfect Fitness Studio">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F9EAEA"/>
+      <stop offset="55%" stop-color="#EDE5FA"/>
+      <stop offset="100%" stop-color="#FDF8F8"/>
+    </linearGradient>
+    <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop stop-color="#C97E84"/>
+      <stop offset="100%" stop-color="#B39DDB"/>
+    </linearGradient>
+    <linearGradient id="accentBar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop stop-color="#C97E84"/>
+      <stop offset="100%" stop-color="#B39DDB"/>
+    </linearGradient>
+    <filter id="soft-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#3D2B3D" flood-opacity="0.10"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+
+  <!-- Decorative blobs -->
+  <ellipse cx="140" cy="130" rx="320" ry="220" fill="#F9EAEA" opacity="0.55"/>
+  <ellipse cx="1080" cy="520" rx="280" ry="200" fill="#EDE5FA" opacity="0.50"/>
+  <ellipse cx="1120" cy="100" rx="160" ry="130" fill="#C97E84" opacity="0.06"/>
+  <ellipse cx="80" cy="560" rx="180" ry="120" fill="#B39DDB" opacity="0.07"/>
+
+  <!-- Logo circle -->
+  <circle cx="600" cy="195" r="64" fill="url(#logoGrad)" filter="url(#soft-shadow)"/>
+  <!-- Lotus / location pin icon (from favicon) -->
+  <g transform="translate(600,195) scale(0.063) translate(-288,-256)" fill="white">
+    <path d="M183.1 235.3c33.7 20.7 62.9 48.1 85.8 80.5c7 9.9 13.4 20.3 19.1 31c5.7-10.8 12.1-21.1 19.1-31c22.9-32.4 52.1-59.8 85.8-80.5C437.6 207.8 490.1 192 546 192h9.9c11.1 0 20.1 9 20.1 20.1C576 360.1 456.1 480 308.1 480H288 267.9C119.9 480 0 360.1 0 212.1C0 201 9 192 20.1 192H30c55.9 0 108.4 15.8 153.1 43.3zM301.5 37.6c15.7 16.9 61.1 71.8 84.4 164.6c-38 21.6-71.4 50.8-97.9 85.6c-26.5-34.8-59.9-63.9-97.9-85.6c23.2-92.8 68.6-147.7 84.4-164.6C278 33.9 282.9 32 288 32s10 1.9 13.5 5.6z"/>
+  </g>
+
+  <!-- Studio Locater wordmark -->
+  <text x="600" y="322" font-family="Georgia, 'Times New Roman', serif" font-size="72" font-weight="bold" fill="#3D2B3D" text-anchor="middle" letter-spacing="-1">Studio Locater</text>
+
+  <!-- Tagline -->
+  <text x="600" y="372" font-family="Arial, Helvetica, sans-serif" font-size="27" fill="#6B4C6B" text-anchor="middle" letter-spacing="0.5">Find Your Perfect Fitness Studio</text>
+
+  <!-- Divider -->
+  <rect x="480" y="398" width="240" height="2" rx="1" fill="url(#accentBar)" opacity="0.6"/>
+
+  <!-- Stat pills -->
+  <rect x="270" y="420" width="196" height="48" rx="24" fill="white" opacity="0.88" filter="url(#soft-shadow)"/>
+  <text x="368" y="450" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#3D2B3D" text-anchor="middle" font-weight="700">2,400+ Studios</text>
+
+  <rect x="502" y="420" width="196" height="48" rx="24" fill="white" opacity="0.88" filter="url(#soft-shadow)"/>
+  <text x="600" y="450" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#3D2B3D" text-anchor="middle" font-weight="700">Across the U.S.</text>
+
+  <rect x="734" y="420" width="196" height="48" rx="24" fill="white" opacity="0.88" filter="url(#soft-shadow)"/>
+  <text x="832" y="450" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#3D2B3D" text-anchor="middle" font-weight="700">Free to Browse</text>
+
+  <!-- Class type tags row -->
+  <text x="600" y="524" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#9E7E9E" text-anchor="middle" letter-spacing="3">YOGA · PILATES · BARRE · HIIT · CYCLING · MORE</text>
+
+  <!-- Domain -->
+  <text x="600" y="572" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#9E7E9E" text-anchor="middle">studiolocater.com</text>
+
+  <!-- Bottom accent bar -->
+  <rect x="0" y="610" width="1200" height="20" fill="url(#accentBar)" opacity="0.65"/>
+</svg>

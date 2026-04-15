@@ -7,4 +7,7 @@ module.exports = defineCliConfig({
   api: {projectId, dataset},
   /** Hosted Studio URL: https://<studioHost>.sanity.studio — change if already taken. */
   studioHost: 'studio-locater',
+  deployment: {
+    appId: 'phcpux4v6ycyw2wsf8go4k44',
+  },
 })

@@ -24,6 +24,12 @@ database_id = "95825d76-550f-47c9-b0b0-e913749d18a8"
 binding = "SESSIONS"
 id = "82fe593a33594a5798346fdb4ad910fc"
 
+# Short-lived Mindbody staff AccessToken cache (see mindbody-api.mjs; ~5 min TTL).
+[[kv_namespaces]]
+binding = "MINDBODY_TOKEN_CACHE"
+id = "c4060b5a4a4541afa18b60effa4eb6aa"
+preview_id = "8bad792dccf44f15ae4ba6de272e8242"
+
 # Public Sanity read (apicdn) — used for /studios/:slug and /sitemap.xml
 # Optional: merge photos/ratings/description from Google Place Details on studio pages:
 #   npx wrangler secret put GOOGLE_API_KEY
@@ -38,20 +44,34 @@ id = "82fe593a33594a5798346fdb4ad910fc"
 #   npx wrangler secret put GMAIL_REFRESH_TOKEN   ← OAuth refresh token (Gmail API gmail.send)
 #   npx wrangler secret put GMAIL_SEND_AS         ← sender address (must match that mailbox)
 # Optional separate OAuth client for mail only: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET
+#
+# Mindbody (optional — `/api/mindbody/studio` when Sanity has mindbodySiteId):
+#   npx wrangler secret put MINDBODY_APP_KEY --env=""
+#   npx wrangler secret put MINDBODY_APP_KEY --env staging
+# Live SiteIds (not -99) also need POST /usertoken/issue credentials (see README, .dev.vars.example):
+#   npx wrangler secret put MINDBODY_ISSUE_USERNAME --env=""
+#   npx wrangler secret put MINDBODY_ISSUE_PASSWORD --env=""
+#   (repeat with --env staging)
 [vars]
 SANITY_PROJECT_ID = "t0z5ndwm"
 SANITY_DATASET = "production"
+# Used when the blog scheduler auto-publishes a post (cron) so notification emails link to your site. Admin “Publish” uses the request URL instead.
+PUBLIC_SITE_URL = "https://studio-locater.wallacebailey32.workers.dev"
 
 # Staging Worker (`npm run deploy` uses --env staging; same Sanity dataset as production).
 # Secrets (per-environment; set each once for studio-locater-staging):
 #   npx wrangler secret put GOOGLE_API_KEY --env staging
 #   npx wrangler secret put ANTHROPIC_API_KEY --env staging
+#   npx wrangler secret put MINDBODY_APP_KEY --env staging
+#   npx wrangler secret put MINDBODY_ISSUE_USERNAME --env staging
+#   npx wrangler secret put MINDBODY_ISSUE_PASSWORD --env staging
 [env.staging]
 name = "studio-locater-staging"
 
 [env.staging.vars]
 SANITY_PROJECT_ID = "t0z5ndwm"
 SANITY_DATASET = "production"
+PUBLIC_SITE_URL = "https://studio-locater-staging.wallacebailey32.workers.dev"
 
 [env.staging.assets]
 directory = "public"
@@ -64,6 +84,11 @@ database_id = "95825d76-550f-47c9-b0b0-e913749d18a8"
 [[env.staging.kv_namespaces]]
 binding = "SESSIONS"
 id = "82fe593a33594a5798346fdb4ad910fc"
+
+[[env.staging.kv_namespaces]]
+binding = "MINDBODY_TOKEN_CACHE"
+id = "c4060b5a4a4541afa18b60effa4eb6aa"
+preview_id = "8bad792dccf44f15ae4ba6de272e8242"
 
 [env.staging.triggers]
 crons = ["0 8 * * *"]

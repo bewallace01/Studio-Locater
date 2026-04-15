@@ -157,10 +157,25 @@ async function createUserSession(env, userId, email) {
   return headers;
 }
 
+const EMAIL_PREFS = new Set(['instant', 'weekly', 'both', 'none']);
+
+function normalizeEmailPref(body) {
+  const raw = body.email_pref ?? body.emailPref;
+  if (raw === undefined || raw === null) {
+    // Older clients that omit the field keep previous behaviour (blog alerts on).
+    return 'instant';
+  }
+  const k = String(raw).toLowerCase().trim();
+  if (!k) return 'instant';
+  return EMAIL_PREFS.has(k) ? k : 'instant';
+}
+
 export async function handleRequestMagicLink(request, env) {
   const body = await request.json().catch(() => ({}));
   const email = normalizeEmail(body.email);
   if (!email) return jsonRes({ error: 'valid_email_required' }, 400);
+
+  const emailPref = normalizeEmailPref(body);
 
   const refresh = String(env.GMAIL_REFRESH_TOKEN || '').trim();
   if (!refresh) return jsonRes({ error: 'email_not_configured' }, 503);
@@ -170,10 +185,10 @@ export async function handleRequestMagicLink(request, env) {
 
   await env.DB.prepare(
     `INSERT INTO users (email, name, email_pref, verified, created_at, updated_at)
-     VALUES (?, NULL, 'instant', 0, ?, ?)
-     ON CONFLICT(email) DO UPDATE SET updated_at = excluded.updated_at`
+     VALUES (?, NULL, ?, 0, ?, ?)
+     ON CONFLICT(email) DO UPDATE SET updated_at = excluded.updated_at, email_pref = excluded.email_pref`
   )
-    .bind(email, now, now)
+    .bind(email, emailPref, now, now)
     .run();
 
   const row = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
@@ -311,4 +326,76 @@ export async function handleUserFavoritesDelete(request, env) {
     .bind(u.userId, studioId)
     .run();
   return jsonRes({ ok: true });
+}
+
+function escHtmlEmail(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Email verified users who opted into blog alerts (email_pref instant or both).
+ * @param {object} opts
+ * @param {number} [opts.postId] - blog_posts.id; dedupes so republishing the same post does not email again
+ * @param {string} opts.siteOrigin - e.g. https://example.com (no trailing slash)
+ * @param {string} opts.slug - blog post slug
+ * @param {string} [opts.title]
+ * @param {string} [opts.excerpt]
+ */
+export async function notifySubscribersBlogPublished(env, { postId, siteOrigin, slug, title, excerpt }) {
+  const origin = String(siteOrigin || '').trim().replace(/\/$/, '');
+  const pathSlug = String(slug || '').trim();
+  if (!origin || !pathSlug) return { ok: false, error: 'bad_args' };
+  if (!String(env.GMAIL_REFRESH_TOKEN || '').trim()) return { ok: false, skipped: 'gmail' };
+
+  const pid = postId != null && Number.isFinite(Number(postId)) ? Number(postId) : null;
+  if (pid != null && env.DB) {
+    const row = await env.DB.prepare(
+      'SELECT id, subscriber_notify_sent_at FROM blog_posts WHERE id = ?'
+    )
+      .bind(pid)
+      .first();
+    if (!row) return { ok: false, error: 'post_not_found' };
+    if (row.subscriber_notify_sent_at != null) {
+      return { ok: true, skipped: 'already_notified', postId: pid };
+    }
+  }
+
+  const postUrl = `${origin}/blog/${encodeURIComponent(pathSlug)}`;
+  const t = String(title || 'New article').trim() || 'New article';
+  const ex = String(excerpt || '').trim();
+  const subject = `New on Studio Locater: ${t}`.slice(0, 250);
+  const plainEx = ex ? `${ex.slice(0, 420)}${ex.length > 420 ? '…' : ''}\n\n` : '';
+  const text = `Hi,\n\nWe just published: ${t}\n\n${plainEx}Read it here: ${postUrl}\n\n— Studio Locater`;
+  const html =
+    `<p style="font-family:Georgia,serif;font-size:16px;color:#3D2B3D">We just published <strong>${escHtmlEmail(t)}</strong>.</p>` +
+    (ex ? `<p style="font-family:sans-serif;font-size:14px;color:#6B4C6B;line-height:1.55">${escHtmlEmail(ex)}</p>` : '') +
+    `<p style="font-family:sans-serif"><a href="${escHtmlEmail(postUrl)}" style="color:#C97E84;font-weight:600">Read the article</a></p>` +
+    `<p style="font-size:12px;color:#9E7E9E">— Studio Locater</p>`;
+
+  const rows = await env.DB.prepare(
+    `SELECT email FROM users WHERE verified = 1 AND email_pref IN ('instant', 'both')`
+  ).all();
+  const emails = [...new Set((rows.results || []).map((r) => r.email).filter(Boolean))];
+  let sent = 0;
+  for (const to of emails) {
+    const r = await sendGmail(env, { to, subject, text, html });
+    if (r.ok) sent++;
+    await new Promise((res) => setTimeout(res, 120));
+  }
+
+  const ts = Math.floor(Date.now() / 1000);
+  if (pid != null && env.DB) {
+    await env.DB.prepare(
+      'UPDATE blog_posts SET subscriber_notify_sent_at = ? WHERE id = ? AND subscriber_notify_sent_at IS NULL'
+    )
+      .bind(ts, pid)
+      .run()
+      .catch(() => {});
+  }
+
+  return { ok: true, sent, recipients: emails.length, postId: pid };
 }

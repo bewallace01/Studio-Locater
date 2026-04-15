@@ -7,6 +7,7 @@
 const path = require('path');
 require('dotenv').config();
 require('dotenv').config({ path: path.join(__dirname, 'studio', '.env') });
+require('dotenv').config({ path: path.join(__dirname, '.dev.vars'), override: true });
 const express = require('express');
 
 const app = express();
@@ -55,6 +56,27 @@ app.get('/api/blog-posts', (_req, res) => {
 app.post('/api/place-meta', (_req, res) => {
   res.json({ meta: {} });
 });
+
+async function handleMindbodyStudioRoute(req, res, pathname) {
+  try {
+    const [{ handleMindbodyStudioApi }, { fetchStudioBySlug }] = await Promise.all([
+      import(path.join(__dirname, 'mindbody-api.mjs')),
+      import(path.join(__dirname, 'studio-detail-page.mjs')),
+    ]);
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host') || 'localhost';
+    const url = new URL(req.originalUrl || pathname, `${proto}://${host}`);
+    const out = await handleMindbodyStudioApi(url, process.env, { fetchStudioBySlug });
+    res.status(out.status).json(out.body);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'server' });
+  }
+}
+
+/** Mindbody schedule + pricing (same logic as Worker; uses MINDBODY_* from .env / .dev.vars). No KV — token cache is in-memory only. */
+app.get('/api/mindbody/studio', (req, res) => handleMindbodyStudioRoute(req, res, '/api/mindbody/studio'));
+app.get('/api/mindbody/schedule', (req, res) => handleMindbodyStudioRoute(req, res, '/api/mindbody/schedule'));
 
 app.get('/admin', (_req, res) => {
   res.sendFile(path.join(publicDir, 'admin.html'));
