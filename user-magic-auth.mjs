@@ -205,7 +205,9 @@ export async function handleRequestMagicLink(request, env) {
     .run();
 
   const origin = new URL(request.url).origin;
-  const verifyUrl = `${origin}/auth/magic?token=${encodeURIComponent(token)}`;
+  const rawReturnTo = body.return_to ? String(body.return_to).trim() : '';
+  const safeReturnTo = rawReturnTo && /^\/[^/]/.test(rawReturnTo) && !rawReturnTo.includes('//') ? rawReturnTo : '';
+  const verifyUrl = `${origin}/auth/magic?token=${encodeURIComponent(token)}${safeReturnTo ? `&return_to=${encodeURIComponent(safeReturnTo)}` : ''}`;
 
   const send = await sendGmail(env, {
     to: email,
@@ -245,7 +247,12 @@ export async function handleVerifyMagicLink(request, env) {
 
   const cookieHeaders = await createUserSession(env, row.user_id, row.email);
   const out = new Headers();
-  out.set('Location', `${url.origin}/?signed_in=1`);
+  // Support return_to for deep-link sign-in (e.g. from studio detail pages).
+  // Validate it's a same-origin relative path to prevent open redirect.
+  const rawReturnTo = String(url.searchParams.get('return_to') || '').trim();
+  const safePath = rawReturnTo && /^\/[^/]/.test(rawReturnTo) && !rawReturnTo.includes('//') ? rawReturnTo : '/';
+  const dest = safePath === '/' ? `${url.origin}/?signed_in=1` : `${url.origin}${safePath}?signed_in=1`;
+  out.set('Location', dest);
   cookieHeaders.forEach((v, k) => out.append(k, v));
   return new Response(null, { status: 302, headers: out });
 }

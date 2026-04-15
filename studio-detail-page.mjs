@@ -235,8 +235,9 @@ function jsonLdLocalBusiness(studio, canonicalUrl) {
   return JSON.stringify(obj).replace(/</g, '\\u003c');
 }
 
-function buildReviewsSectionHtml(studioSlug, reviews) {
+function buildReviewsSectionHtml(studioSlug, reviews, studioDisplayName) {
   const slug = escapeHtml(String(studioSlug || ''));
+  const nameForReview = escapeHtml(String(studioDisplayName || studioSlug || ''));
   const reviewCards = reviews.map(r => {
     const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
     const dateStr = r.created_at ? new Date(r.created_at * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
@@ -259,6 +260,7 @@ function buildReviewsSectionHtml(studioSlug, reviews) {
   <script>
   (function(){
     var slug = ${JSON.stringify(slug)};
+    var studioName = ${JSON.stringify(nameForReview)};
     var formWrap = document.getElementById('review-form-wrap');
     var reviewsList = document.getElementById('reviews-list');
     var selectedRating = 0;
@@ -300,7 +302,7 @@ function buildReviewsSectionHtml(studioSlug, reviews) {
         this.disabled = true;
         fetch('/api/reviews/'+encodeURIComponent(slug), {
           method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({rating:selectedRating, comment:comment})
+          body: JSON.stringify({rating:selectedRating, comment:comment, studioName:studioName})
         }).then(function(r){ return r.json(); }).then(function(d){
           if (d.ok) {
             formWrap.innerHTML = '<p style="font-size:14px;color:var(--plum-mid);margin-top:8px">Thanks for your review!</p>';
@@ -322,13 +324,52 @@ function buildReviewsSectionHtml(studioSlug, reviews) {
       if (me && me.email) {
         showForm(me.email);
       } else {
-        formWrap.innerHTML = '<p class="review-login-prompt"><a href="#" id="review-signin-btn">Sign in</a> to leave a review.</p>';
-        document.getElementById('review-signin-btn').addEventListener('click', function(e){
-          e.preventDefault();
-          document.dispatchEvent(new CustomEvent('open-signup-modal'));
-        });
+        showSignInForm();
       }
-    }).catch(function(){ });
+    }).catch(function(){ showSignInForm(); });
+
+    function showSignInForm() {
+      formWrap.innerHTML = '<p class="review-login-prompt" style="margin-bottom:14px">Sign in to leave a review.</p>'
+        +'<div class="review-signin-form" id="review-signin-form">'
+        +'<input type="email" id="review-email-input" placeholder="Your email address" autocomplete="email" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;color:var(--plum);outline:none;box-sizing:border-box;">'
+        +'<button class="review-submit-btn" id="review-email-submit" style="margin-top:10px;"><i class="fa-solid fa-envelope"></i> Send sign-in link</button>'
+        +'<p id="review-email-msg" style="font-size:13px;margin-top:8px;color:var(--plum-mid)"></p>'
+        +'</div>';
+
+      var emailInput = document.getElementById('review-email-input');
+      var emailBtn = document.getElementById('review-email-submit');
+      var emailMsg = document.getElementById('review-email-msg');
+
+      emailInput.addEventListener('focus', function(){ this.style.borderColor='var(--rose-deep)'; });
+      emailInput.addEventListener('blur',  function(){ this.style.borderColor='var(--border)'; });
+
+      emailBtn.addEventListener('click', function(){
+        var email = emailInput.value.trim();
+        if (!email || !email.includes('@')) { emailMsg.textContent = 'Please enter a valid email.'; emailMsg.style.color='var(--rose-deep)'; return; }
+        emailBtn.disabled = true;
+        emailMsg.style.color = 'var(--plum-mid)';
+        emailMsg.textContent = 'Sending…';
+        fetch('/api/auth/magic-link', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ email: email, return_to: window.location.pathname })
+        }).then(function(r){ return r.json(); }).then(function(d){
+          if (d.ok || d.sent) {
+            formWrap.innerHTML = '<p style="font-size:14px;color:var(--plum-mid)"><i class="fa-solid fa-envelope-circle-check" style="color:var(--rose-deep);margin-right:6px"></i>Check your inbox — we sent a sign-in link to <strong>'+email+'</strong>. Click it and come back to leave your review.</p>';
+          } else {
+            emailMsg.textContent = d.error === 'email_not_configured' ? 'Email sign-in is not available right now.' : (d.error || 'Something went wrong.');
+            emailMsg.style.color = 'var(--rose-deep)';
+            emailBtn.disabled = false;
+          }
+        }).catch(function(){
+          emailMsg.textContent = 'Network error. Please try again.';
+          emailMsg.style.color = 'var(--rose-deep)';
+          emailBtn.disabled = false;
+        });
+      });
+
+      emailInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') emailBtn.click(); });
+    }
   })();
   </script>`;
 }
@@ -451,7 +492,35 @@ export function buildStudioDetailHtml(studio, opts) {
 </head>
 <body>
   <div class="wrap">
-    <nav><a href="/"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to search</a></nav>
+    <nav style="display:flex;align-items:center;justify-content:space-between">
+      <a href="/"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to search</a>
+      <span id="detail-nav-auth" style="font-size:13px;color:var(--plum-light)"></span>
+    </nav>
+    <script>
+    fetch('/api/me',{credentials:'same-origin'}).then(r=>r.json()).then(function(d){
+      var el=document.getElementById('detail-nav-auth');
+      if(!el)return;
+      if(d&&d.user&&d.user.email){
+        el.innerHTML='<a href="/account" style="color:var(--plum-mid);text-decoration:none;font-weight:500;display:inline-flex;align-items:center;gap:6px;"><i class="fa-solid fa-circle-user" style="color:var(--rose-deep)"></i> My account</a>';
+      }
+    }).catch(function(){});
+    // Strip ?signed_in=1 and show a welcome toast
+    (function(){
+      try {
+        var q=new URLSearchParams(location.search);
+        if(q.get('signed_in')==='1'){
+          q.delete('signed_in');
+          var s=q.toString();
+          history.replaceState({},'',s?location.pathname+'?'+s:location.pathname);
+          var t=document.createElement('div');
+          t.textContent="You're signed in — leave your review below!";
+          t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--plum);color:#fff;padding:12px 22px;border-radius:50px;font-size:14px;font-weight:500;z-index:9999;white-space:nowrap;box-shadow:0 4px 20px rgba(61,43,94,.3)';
+          document.body.appendChild(t);
+          setTimeout(function(){t.style.opacity='0';t.style.transition='opacity .5s';setTimeout(function(){t.remove()},500)},3500);
+        }
+      }catch(e){}
+    })();
+    </script>
     <article itemscope itemtype="https://schema.org/SportsActivityLocation">
       <header>
         <h1 itemprop="name">${name}</h1>
@@ -481,7 +550,7 @@ export function buildStudioDetailHtml(studio, opts) {
       ${vibes.length ? `<section><h2>Vibes</h2><p>${vibes.map((v) => `<span class="pill">${escapeHtml(v)}</span>`).join(' ')}</p></section>` : ''}
       ${tags.length ? `<section><h2>Class types</h2><div class="tags">${tags.map((t) => `<span>${escapeHtml(t)}</span>`).join('')}</div></section>` : ''}
       ${mindbodyScheduleSectionHtml(studio)}
-      ${buildReviewsSectionHtml(studio.slug, userReviews)}
+      ${buildReviewsSectionHtml(studio.slug, userReviews, studio.name)}
     </article>
   </div>
 </body>

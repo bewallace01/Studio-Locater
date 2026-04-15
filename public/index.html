@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <!-- Required for listings: public Sanity project id (see https://sanity.io/manage). -->
   <meta name="sanity-project-id" content="t0z5ndwm">
   <meta name="sanity-dataset" content="production">
@@ -138,16 +138,18 @@
     /* ═══════════════ NAV ═══════════════ */
     nav {
       position:fixed; top:0; left:0; right:0; z-index:1000;
-      padding:0 52px; height:72px;
+      padding:0 max(52px, env(safe-area-inset-right)) 0 max(52px, env(safe-area-inset-left));
+      height:72px;
       display:flex; align-items:center; justify-content:space-between;
       gap:12px;
       background:rgba(253,248,248,0.92); backdrop-filter:blur(20px);
       border-bottom:1px solid var(--border); transition:box-shadow 0.3s;
+      touch-action:manipulation;
     }
     nav.scrolled { box-shadow:0 4px 28px var(--shadow); }
     /* Fixed nav: anchor scroll targets sit below the bar */
     #main { scroll-margin-top: 88px; }
-    .nav-logo { display:flex; align-items:center; gap:10px; text-decoration:none; cursor:pointer; }
+    .nav-logo { display:flex; align-items:center; gap:10px; text-decoration:none; cursor:pointer; min-width:0; }
     .nav-logo-icon {
       width:36px; height:36px; border-radius:50%;
       background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));
@@ -242,9 +244,10 @@
 
     .nav-menu-btn {
       display:none; flex-shrink:0;
-      width:44px; height:44px; border-radius:12px; border:1.5px solid var(--border);
+      width:48px; height:48px; min-width:48px; min-height:48px; border-radius:14px; border:1.5px solid var(--border);
       background:#fff; color:var(--plum-mid); font-size:18px; cursor:pointer;
       align-items:center; justify-content:center; transition:background .2s,border-color .2s;
+      -webkit-tap-highlight-color:transparent;
     }
     .nav-menu-btn:hover { background:var(--blush); border-color:var(--rose); color:var(--plum); }
 
@@ -259,7 +262,8 @@
       position:relative;
       width:min(300px, 88vw); height:100%; background:#fff;
       box-shadow:-8px 0 40px rgba(61,43,61,.12);
-      padding:72px 24px 32px; display:flex; flex-direction:column; gap:6px;
+      padding:max(72px, calc(env(safe-area-inset-top) + 52px)) 24px max(32px, env(safe-area-inset-bottom));
+      display:flex; flex-direction:column; gap:6px;
       transform:translateX(100%); transition:transform .28s cubic-bezier(.2,.8,.2,1);
     }
     .nav-drawer.open .nav-drawer-panel { transform:translateX(0); }
@@ -384,7 +388,6 @@
     @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
 
     /* ═══════════════ MAIN ═══════════════ */
-    #main { scroll-margin-top:80px; }
     .main-section { padding:0 52px 100px;max-width:1440px;margin:0 auto; }
     .section-header { display:flex;align-items:flex-end;justify-content:space-between;padding:52px 0 28px; }
     .section-title { font-family:'Playfair Display',serif;font-size:30px;font-weight:600;color:var(--plum); }
@@ -735,6 +738,53 @@
     @keyframes spin { to { transform:rotate(360deg); } }
 
     /* ═══════════════ FOOTER ═══════════════ */
+    /* ═══════════════ EXPLORE BY CITY ═══════════════ */
+    .city-section { padding:72px 52px 80px; max-width:1440px; margin:0 auto; }
+    .city-section-head { text-align:center; margin-bottom:48px; }
+    .city-section-head h2 { font-family:'Playfair Display',serif; font-size:32px; font-weight:600; color:var(--plum); margin-bottom:10px; }
+    .city-section-head p { font-size:15px; color:var(--plum-light); max-width:480px; margin:0 auto; }
+    .city-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px; }
+    .city-card {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:10px; padding:28px 16px; border-radius:16px; text-decoration:none;
+      background:#fff; border:1.5px solid var(--border);
+      transition:transform .2s, box-shadow .2s, border-color .2s;
+      text-align:center;
+      touch-action:manipulation;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .city-card:hover { transform:translateY(-3px); box-shadow:0 8px 28px rgba(130,80,160,.13); border-color:var(--lavender); }
+    .city-card-icon { display:flex; align-items:center; justify-content:center; min-height:56px; }
+    .city-card-glyph {
+      width:52px; height:52px; border-radius:16px;
+      display:flex; align-items:center; justify-content:center;
+      background:linear-gradient(165deg, var(--blush-light) 0%, #fff 100%);
+      border:1px solid rgba(232,180,184,.5);
+      font-size:1.25rem;
+      box-shadow:0 4px 14px rgba(61,43,61,.06);
+      transition:transform .2s, box-shadow .2s, border-color .2s;
+    }
+    .city-card:hover .city-card-glyph {
+      border-color:rgba(179,157,219,.55);
+      box-shadow:0 6px 20px rgba(130,80,160,.12);
+      transform:translateY(-1px);
+    }
+    .city-card-nearme .city-card-glyph {
+      background:rgba(255,255,255,.2);
+      border-color:rgba(255,255,255,.45);
+      box-shadow:0 4px 18px rgba(0,0,0,.12);
+    }
+    .city-card-nearme .city-card-glyph i { color:#fff !important; }
+    .city-card-name { font-family:'Playfair Display',serif; font-size:16px; font-weight:600; color:var(--plum); }
+    .city-card-sub { font-size:11px; color:var(--plum-light); letter-spacing:.03em; text-transform:uppercase; }
+    .city-card-nearme {
+      background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));
+      border-color:transparent; color:#fff;
+    }
+    .city-card-nearme .city-card-name { color:#fff; }
+    .city-card-nearme .city-card-sub { color:rgba(255,255,255,.7); }
+    .city-card-nearme:hover { box-shadow:0 8px 28px rgba(180,80,120,.35); border-color:transparent; }
+
     footer { background:var(--plum);padding:64px 52px 40px;text-align:center;position:relative;overflow:hidden; }
     footer::before { content:'';position:absolute;inset:0;background-image:radial-gradient(circle,rgba(232,180,184,.06) 1px,transparent 1px);background-size:24px 24px;pointer-events:none; }
     .footer-logo { font-family:'Playfair Display',serif;font-size:32px;font-style:italic;color:#fff;margin-bottom:10px;position:relative; }
@@ -754,8 +804,23 @@
       .map-wrap{position:relative;top:0}
       .results-layout.view-split #map,
       .results-layout.view-list #map { height:min(42vh,360px); }
-      nav,.main-section,footer{padding-left:24px;padding-right:24px}
+      nav,.main-section,.city-section,footer{padding-left:24px;padding-right:24px}
       .section-header { flex-wrap:wrap; gap:16px; align-items:flex-start; }
+    }
+    /* Tablet & phone: drawer nav — avoids cramped mega-menu and tiny tap targets */
+    @media(max-width:960px) {
+      nav {
+        height:64px;
+        padding-left:max(16px, env(safe-area-inset-left));
+        padding-right:max(16px, env(safe-area-inset-right));
+      }
+      .nav-logo { flex:1; min-width:0; }
+      .nav-links { display:none !important; }
+      .nav-menu-btn { display:flex !important; }
+      .nav-logo-text { font-size:clamp(16px, 4.2vw, 18px); max-width:min(220px, 58vw); }
+      #main { scroll-margin-top:76px; }
+      .hero { padding-top:64px; min-height:auto; }
+      .nav-drawer-close { top:max(12px, env(safe-area-inset-top)); right:max(12px, env(safe-area-inset-right)); }
     }
     @media(max-width:768px) {
       .section-header { flex-direction:column; align-items:stretch; padding:36px 0 20px; gap:14px; }
@@ -785,17 +850,18 @@
       .cursor-layer { display:none !important; }
     }
     @media(max-width:640px) {
-      nav { height:60px; padding:0 16px; }
-      .nav-logo-text { font-size:17px; max-width:calc(100vw - 120px); overflow:hidden; text-overflow:ellipsis; }
-      .nav-links { display:none; }
-      .nav-menu-btn { display:flex; }
-      .hero { min-height:auto; padding-top:72px; padding-bottom:36px; }
+      nav { height:58px; padding-left:max(14px, env(safe-area-inset-left)); padding-right:max(14px, env(safe-area-inset-right)); }
+      .nav-logo-text { font-size:16px; max-width:calc(100vw - 112px); overflow:hidden; text-overflow:ellipsis; }
+      .hero { padding-top:58px; padding-bottom:36px; }
       .hero-content { padding:40px 16px 28px; }
       .hero h1 { font-size:clamp(32px,9vw,44px); }
       .hero-sub { font-size:15px; padding:0 4px; }
       .hero-stats { flex-wrap:wrap; gap:16px 20px; padding-top:28px; margin-top:24px; justify-content:center; }
       .stat { min-width:calc(50% - 12px); }
       .cards-grid{grid-template-columns:1fr}
+      .city-grid { grid-template-columns:repeat(2,1fr); gap:12px; }
+      .city-section { padding:48px 24px 56px; }
+      .city-section-head h2 { font-size:24px; }
       .studio-card.featured{grid-column:span 1;grid-template-columns:1fr}
       .studio-card.featured .card-image{height:188px}
       .card-footer { flex-wrap:wrap; gap:10px; }
@@ -874,6 +940,7 @@
         </div>
       </div>
     </li>
+    <li><a href="/yoga-studios-near-me" style="display:inline-flex;align-items:center;gap:5px;"><i class="fa-solid fa-crosshairs" style="font-size:12px;color:var(--rose-deep)"></i> Near me</a></li>
     <li id="navLoginLi"><a href="#" class="nav-login-link" id="navLoginCta" onclick="event.preventDefault(); openLoginModal();">Log in</a></li>
     <li><a class="nav-cta" id="navAuthCta" href="#" onclick="event.preventDefault(); authNavClick();">Sign Up Free</a></li>
   </ul>
@@ -909,6 +976,7 @@
       <a href="/blog" onclick="toggleNavDrawer(false)">Blog</a>
       <div class="nav-drawer-sublinks" id="navDrawerBlogLinks"></div>
     </div>
+    <a href="/yoga-studios-near-me" onclick="toggleNavDrawer(false)" style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-crosshairs" style="color:var(--rose-deep)"></i> Studios near me</a>
     <a href="#" class="nav-drawer-login" id="navDrawerLoginCta" onclick="event.preventDefault();toggleNavDrawer(false);openLoginModal()">Log in</a>
     <a href="#" class="nav-drawer-cta" id="navDrawerAuthCta" onclick="event.preventDefault();toggleNavDrawer(false);authNavClick()">Sign Up Free</a>
   </div>
@@ -1032,6 +1100,76 @@
     <div class="map-wrap" id="mapWrap"><div id="map"></div></div>
   </div>
 </main>
+
+<!-- ════════════ EXPLORE BY CITY ════════════ -->
+<section class="city-section reveal">
+  <div class="city-section-head">
+    <h2>Explore by City</h2>
+    <p>Browse top yoga, pilates &amp; wellness studios in cities across the US.</p>
+  </div>
+  <div class="city-grid">
+    <a class="city-card city-card-nearme" href="/yoga-studios-near-me">
+      <div class="city-card-icon" aria-hidden="true"><span class="city-card-glyph"><i class="fa-solid fa-crosshairs"></i></span></div>
+      <div class="city-card-name">Near Me</div>
+      <div class="city-card-sub">Use my location</div>
+    </a>
+    <a class="city-card" href="/yoga-studios-new-york">
+      <div class="city-card-icon" aria-hidden="true"><span class="city-card-glyph"><i class="fa-solid fa-city" style="color:#7B5EA7"></i></span></div>
+      <div class="city-card-name">New York</div>
+      <div class="city-card-sub">Yoga studios</div>
+    </a>
+    <a class="city-card" href="/yoga-studios-brooklyn">
+      <div class="city-card-icon" aria-hidden="true"><span class="city-card-glyph"><i class="fa-solid fa-bridge" style="color:#5B7C99"></i></span></div>
+      <div class="city-card-name">Brooklyn</div>
+      <div class="city-card-sub">Yoga studios</div>
+    </a>
+    <a class="city-card" href="/yoga-studios-los-angeles">
+      <div class="city-card-icon" aria-hidden="true"><span class="city-card-glyph"><i class="fa-solid fa-sun" style="color:#C9A227"></i></span></div>
+      <div class="city-card-name">Los Angeles</div>
+      <div class="city-card-sub">Yoga studios</div>
+    </a>
+    <a class="city-card" href="/yoga-studios-chicago">
+      <div class="city-card-icon" aria-hidden="true"><span class="city-card-glyph"><i class="fa-solid fa-building" style="color:#6B4C6B"></i></span></div>
+      <div class="city-card-name">Chicago</div>
+      <div class="city-card-sub">Yoga studios</div>
+    </a>
+    <a class="city-card" href="/yoga-studios-austin">
+      <div class="city-card-icon" aria-hidden="true"><span class="city-card-glyph"><i class="fa-solid fa-star" style="color:var(--gold)"></i></span></div>
+      <div class="city-card-name">Austin</div>
+      <div class="city-card-sub">Yoga studios</div>
+    </a>
+    <a class="city-card" href="/yoga-studios-san-francisco">
+      <div class="city-card-icon" aria-hidden="true"><span class="city-card-glyph"><i class="fa-solid fa-cloud" style="color:#8B9DC3"></i></span></div>
+      <div class="city-card-name">San Francisco</div>
+      <div class="city-card-sub">Yoga studios</div>
+    </a>
+    <a class="city-card" href="/yoga-studios-miami">
+      <div class="city-card-icon" aria-hidden="true"><span class="city-card-glyph"><i class="fa-solid fa-water" style="color:#4A90A4"></i></span></div>
+      <div class="city-card-name">Miami</div>
+      <div class="city-card-sub">Yoga studios</div>
+    </a>
+    <a class="city-card" href="/yoga-studios-seattle">
+      <div class="city-card-icon" aria-hidden="true"><span class="city-card-glyph"><i class="fa-solid fa-mountain-sun" style="color:#5A7D6E"></i></span></div>
+      <div class="city-card-name">Seattle</div>
+      <div class="city-card-sub">Yoga studios</div>
+    </a>
+    <a class="city-card" href="/pilates-studios-new-york">
+      <div class="city-card-icon" aria-hidden="true"><span class="city-card-glyph"><i class="fa-solid fa-city" style="color:#7B5EA7"></i></span></div>
+      <div class="city-card-name">New York</div>
+      <div class="city-card-sub">Pilates studios</div>
+    </a>
+    <a class="city-card" href="/pilates-studios-los-angeles">
+      <div class="city-card-icon" aria-hidden="true"><span class="city-card-glyph"><i class="fa-solid fa-sun" style="color:#C9A227"></i></span></div>
+      <div class="city-card-name">Los Angeles</div>
+      <div class="city-card-sub">Pilates studios</div>
+    </a>
+    <a class="city-card" href="/pilates-studios-chicago">
+      <div class="city-card-icon" aria-hidden="true"><span class="city-card-glyph"><i class="fa-solid fa-building" style="color:#6B4C6B"></i></span></div>
+      <div class="city-card-name">Chicago</div>
+      <div class="city-card-sub">Pilates studios</div>
+    </a>
+  </div>
+</section>
 
 <!-- ════════════ FOOTER ════════════ -->
 <footer>

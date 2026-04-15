@@ -32,6 +32,8 @@
     "d1:migrate:remote:blog-notify": "npx wrangler d1 execute studio-locater-admin --file=migrations/005_blog_subscriber_notify_sent.sql --remote -y",
     "d1:migrate:local:reviews": "npx wrangler d1 execute studio-locater-admin --file=migrations/006_studio_reviews.sql --local -y",
     "d1:migrate:remote:reviews": "npx wrangler d1 execute studio-locater-admin --file=migrations/006_studio_reviews.sql --remote -y",
+    "d1:migrate:local:reviews-name": "npx wrangler d1 execute studio-locater-admin --file=migrations/007_studio_reviews_name.sql --local -y",
+    "d1:migrate:remote:reviews-name": "npx wrangler d1 execute studio-locater-admin --file=migrations/007_studio_reviews_name.sql --remote -y",
     "cms": "npm run dev --prefix studio",
     "cms:deploy": "node scripts/sanity-deploy.mjs",
     "import:search": "node scripts/import-from-search-api.mjs",

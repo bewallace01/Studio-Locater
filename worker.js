@@ -1156,6 +1156,156 @@ async function handlePlaceMetaPost(request, env) {
   return jsonRes({ meta });
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Account dashboard (client-side rendered, auth-gated)
+// ─────────────────────────────────────────────────────────────────────────────
+async function handleAccountPage(request, env) {
+  const session = await (async () => { try { return await getUserSession(env, request); } catch { return null; } })();
+  if (!session) {
+    return new Response(null, { status: 302, headers: { Location: '/?auth=signin' } });
+  }
+  const origin = new URL(request.url).origin;
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>My Account — Studio Locater</title>
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --plum:#3D2B5E;--plum-mid:#5A4070;--plum-light:#9B88B8;
+      --rose:#E8B4B8;--rose-deep:#C97B84;--lavender:#C8B8E8;
+      --blush:#FDF0F2;--border:#EDE5FA;--gold:#C9A96E;
+    }
+    body{font-family:'DM Sans',sans-serif;background:#FAF7FE;color:var(--plum);min-height:100vh}
+    nav{display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:64px;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+    .nav-back{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--plum-mid);font-size:14px;font-weight:500;transition:color .2s}
+    .nav-back:hover{color:var(--plum)}
+    .nav-logo{font-family:'Playfair Display',serif;font-size:18px;color:var(--plum);text-decoration:none}
+    .nav-signout{font-size:13px;color:var(--plum-light);cursor:pointer;background:none;border:1.5px solid var(--border);border-radius:50px;padding:6px 14px;font-family:inherit;transition:color .2s,border-color .2s}
+    .nav-signout:hover{color:var(--rose-deep);border-color:var(--rose)}
+    main{max-width:760px;margin:48px auto;padding:0 24px 80px}
+    h1{font-family:'Playfair Display',serif;font-size:28px;font-weight:600;margin-bottom:6px}
+    .account-email{font-size:15px;color:var(--plum-mid);margin-bottom:40px}
+    section{margin-bottom:48px}
+    section h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--plum-light);font-weight:700;margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+    .empty{font-size:14px;color:var(--plum-light);padding:20px 0}
+    /* Review cards */
+    .review-card{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:12px}
+    .review-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap}
+    .review-studio-name{font-weight:600;font-size:15px;color:var(--plum);text-decoration:none}
+    .review-studio-name:hover{color:var(--rose-deep)}
+    .review-stars{color:var(--gold);font-size:15px;letter-spacing:1px;white-space:nowrap}
+    .review-date{font-size:12px;color:var(--plum-light);margin-top:4px}
+    .review-comment{font-size:14px;color:var(--plum-mid);line-height:1.6;margin-top:8px}
+    /* Favorite cards */
+    .fav-card{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:12px;display:flex;align-items:center;gap:16px;text-decoration:none;transition:border-color .2s,box-shadow .2s}
+    .fav-card:hover{border-color:var(--lavender);box-shadow:0 4px 16px rgba(130,80,160,.1)}
+    .fav-thumb{width:52px;height:52px;border-radius:10px;object-fit:cover;flex-shrink:0;background:var(--blush)}
+    .fav-thumb-placeholder{width:52px;height:52px;border-radius:10px;background:var(--blush);display:flex;align-items:center;justify-content:center;color:var(--rose-deep);font-size:22px;flex-shrink:0}
+    .fav-info{flex:1;min-width:0}
+    .fav-name{font-weight:600;font-size:15px;color:var(--plum);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .fav-addr{font-size:12px;color:var(--plum-light);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .fav-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+    .fav-tag{font-size:11px;background:var(--blush);color:var(--rose-deep);border-radius:50px;padding:2px 8px;font-weight:500}
+    .loading{font-size:14px;color:var(--plum-light);padding:20px 0}
+    @media(max-width:600px){
+      nav{padding:0 16px;height:56px}
+      main{margin-top:28px}
+      h1{font-size:22px}
+    }
+  </style>
+</head>
+<body>
+<nav>
+  <a class="nav-back" href="/"><i class="fa-solid fa-arrow-left" style="font-size:12px"></i> Search</a>
+  <a class="nav-logo" href="/">Studio Locater</a>
+  <button class="nav-signout" id="signoutBtn">Sign out</button>
+</nav>
+<main>
+  <h1>My Account</h1>
+  <div class="account-email" id="accountEmail"><span class="loading">Loading…</span></div>
+
+  <section>
+    <h2>My Reviews</h2>
+    <div id="reviewsList"><span class="loading">Loading…</span></div>
+  </section>
+
+  <section>
+    <h2>Saved Studios</h2>
+    <div id="favsList"><span class="loading">Loading…</span></div>
+  </section>
+</main>
+<script>
+function esc(t){var d=document.createElement('div');d.textContent=String(t||'');return d.innerHTML;}
+function fmtDate(ts){return ts?new Date(ts*1000).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):''}
+function stars(n){return'★'.repeat(n)+'☆'.repeat(5-n)}
+function slugToPath(slug){return slug?'/studios/'+slug:'#'}
+
+fetch('/api/me',{credentials:'same-origin'}).then(r=>r.json()).then(me=>{
+  if(!me||!me.user){window.location='/';return;}
+  document.getElementById('accountEmail').textContent=me.user.email||'';
+}).catch(()=>{window.location='/';});
+
+fetch('/api/me/reviews',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{
+  var el=document.getElementById('reviewsList');
+  if(!d.reviews||!d.reviews.length){el.innerHTML='<p class="empty">No reviews yet. Visit a studio page to leave your first review.</p>';return;}
+  el.innerHTML=d.reviews.map(function(r){
+    var name=r.studio_name||r.studio_slug||'Studio';
+    var path=slugToPath(r.studio_slug);
+    return '<div class="review-card">'
+      +'<div class="review-card-header">'
+      +'<a class="review-studio-name" href="'+esc(path)+'">'+esc(name)+'</a>'
+      +'<span class="review-stars">'+stars(r.rating)+'</span>'
+      +'</div>'
+      +(r.comment?'<div class="review-comment">'+esc(r.comment)+'</div>':'')
+      +'<div class="review-date">'+fmtDate(r.updated_at||r.created_at)+'</div>'
+      +'</div>';
+  }).join('');
+}).catch(function(){document.getElementById('reviewsList').innerHTML='<p class="empty">Could not load reviews.</p>';});
+
+fetch('/api/me/favorites',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{
+  var el=document.getElementById('favsList');
+  var favs=d.favorites||[];
+  if(!favs.length){el.innerHTML='<p class="empty">No saved studios yet. Heart a studio on the search page to save it.</p>';return;}
+  el.innerHTML=favs.map(function(f){
+    var data={};try{data=JSON.parse(f.studioData||f.studio_data||'{}');}catch(e){}
+    var name=f.studioName||f.studio_name||data.name||'Studio';
+    var addr=data.address||'';
+    var img=data.imageUrl||data.cardImageUrl||'';
+    var tags=Array.isArray(data.tags)?data.tags:[];
+    var href=data.slug?'/studios/'+data.slug:'#';
+    var thumb=img
+      ?'<img class="fav-thumb" src="'+esc(img)+'" alt="" loading="lazy">'
+      :'<div class="fav-thumb-placeholder"><i class="fa-solid fa-spa"></i></div>';
+    return '<a class="fav-card" href="'+esc(href)+'">'
+      +thumb
+      +'<div class="fav-info">'
+      +'<div class="fav-name">'+esc(name)+'</div>'
+      +(addr?'<div class="fav-addr">'+esc(addr)+'</div>':'')
+      +(tags.length?'<div class="fav-tags">'+tags.slice(0,3).map(t=>'<span class="fav-tag">'+esc(t)+'</span>').join('')+'</div>':'')
+      +'</div>'
+      +'</a>';
+  }).join('');
+}).catch(function(){document.getElementById('favsList').innerHTML='<p class="empty">Could not load favorites.</p>';});
+
+document.getElementById('signoutBtn').addEventListener('click',function(){
+  fetch('/api/auth/user-logout',{method:'POST',credentials:'same-origin'}).finally(function(){window.location='/';});
+});
+</script>
+</body>
+</html>`;
+  return new Response(html, {
+    status: 200,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
+}
+
 async function handleBlogIndex(request, env) {
   const rows = await env.DB.prepare(
     "SELECT id, slug, title, excerpt, published_at, image_keyword FROM blog_posts WHERE status='published' ORDER BY published_at DESC LIMIT 20"
@@ -1982,6 +2132,19 @@ export default {
       }
     }
 
+    if (path === '/api/me/reviews' && method === 'GET') {
+      const session = await (async () => { try { return await getUserSession(env, request); } catch { return null; } })();
+      if (!session) return jsonRes({ error: 'auth_required' }, 401);
+      try {
+        const rows = env.DB
+          ? (await env.DB.prepare(
+              'SELECT studio_slug, studio_name, rating, comment, created_at, updated_at FROM studio_reviews WHERE user_id = ? ORDER BY updated_at DESC'
+            ).bind(session.userId).all()).results || []
+          : [];
+        return jsonRes({ reviews: rows });
+      } catch (e) { return jsonRes({ reviews: [] }); }
+    }
+
     // ── Geocode API (for near-me pages) ────────────────────────────────────
     if (path === '/api/geocode' && method === 'GET') return handleGeocode(request, env);
 
@@ -2009,13 +2172,14 @@ export default {
           const rating = Number(body.rating);
           if (!Number.isInteger(rating) || rating < 1 || rating > 5) return jsonRes({ error: 'invalid_rating' }, 400);
           const comment = body.comment ? String(body.comment).trim().slice(0, 800) : null;
+          const studioName = body.studioName ? String(body.studioName).trim().slice(0, 200) : null;
           const now = Math.floor(Date.now() / 1000);
           try {
             await env.DB.prepare(
-              `INSERT INTO studio_reviews (studio_slug, user_id, user_email, rating, comment, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)
-               ON CONFLICT(studio_slug, user_id) DO UPDATE SET rating=excluded.rating, comment=excluded.comment, updated_at=excluded.updated_at`
-            ).bind(studioSlug, session.userId, session.email, rating, comment, now, now).run();
+              `INSERT INTO studio_reviews (studio_slug, user_id, user_email, rating, comment, studio_name, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(studio_slug, user_id) DO UPDATE SET rating=excluded.rating, comment=excluded.comment, studio_name=excluded.studio_name, updated_at=excluded.updated_at`
+            ).bind(studioSlug, session.userId, session.email, rating, comment, studioName, now, now).run();
             return jsonRes({ ok: true });
           } catch (e) { return jsonRes({ error: String(e && e.message ? e.message : e) }, 500); }
         }
@@ -2119,6 +2283,7 @@ export default {
     }
 
     // ── Blog routes ─────────────────────────────────────────────────────────
+    if (path === '/account') return handleAccountPage(request, env);
     if (path === '/blog') return handleBlogIndex(request, env);
     {
       const bm = path.match(/^\/blog\/([^/]+)$/);
