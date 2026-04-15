@@ -229,7 +229,18 @@ function jsonLdLocalBusiness(studio, canonicalUrl) {
             worstRating: 1
           }
         : undefined,
-    sameAs: sameAs.length ? sameAs : undefined
+    sameAs: sameAs.length ? sameAs : undefined,
+    ...(locality
+      ? {
+          areaServed: {
+            '@type': 'City',
+            name: locality,
+            containedInPlace: { '@type': 'Country', name: 'United States' }
+          }
+        }
+      : {
+          areaServed: { '@type': 'Country', name: 'United States' }
+        })
   };
 
   return JSON.stringify(obj).replace(/</g, '\\u003c');
@@ -401,6 +412,15 @@ export function buildStudioDetailHtml(studio, opts) {
   const mapsUrlEsc = mapsUrl ? escapeHtml(mapsUrl) : '';
 
   const jsonLd = jsonLdLocalBusiness(studio, canonicalUrl);
+  let defaultOgImage = '';
+  try {
+    defaultOgImage = escapeHtml(new URL(canonicalUrl).origin + '/og-image.svg');
+  } catch {
+    defaultOgImage = escapeHtml('https://studiolocater.com/og-image.svg');
+  }
+  const ogImageMeta = img
+    ? `<meta property="og:image" content="${img}"><meta name="twitter:image" content="${img}">`
+    : `<meta property="og:image" content="${defaultOgImage}"><meta name="twitter:image" content="${defaultOgImage}">`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -411,14 +431,21 @@ export function buildStudioDetailHtml(studio, opts) {
   <meta name="description" content="${metaDesc}">
   ${robotsNoIndex ? '<meta name="robots" content="noindex, follow">' : ''}
   <link rel="canonical" href="${escapeHtml(canonicalUrl)}">
+  <link rel="alternate" hreflang="en-us" href="${escapeHtml(canonicalUrl)}">
+  <link rel="alternate" hreflang="x-default" href="${escapeHtml(canonicalUrl)}">
+  <meta name="geo.region" content="US">
   <link rel="icon" href="/favicon.svg?v=6" type="image/svg+xml" sizes="any">
   <link rel="apple-touch-icon" href="/favicon.svg?v=6">
   <meta property="og:title" content="${name} | Studio Locater">
   <meta property="og:description" content="${metaDesc}">
   <meta property="og:url" content="${escapeHtml(canonicalUrl)}">
   <meta property="og:type" content="website">
-  ${img ? `<meta property="og:image" content="${img}">` : ''}
+  <meta property="og:site_name" content="Studio Locater">
+  <meta property="og:locale" content="en_US">
+  ${ogImageMeta}
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${name} | Studio Locater">
+  <meta name="twitter:description" content="${metaDesc}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:opsz,wght@9..40,400;9..40,600&display=swap" rel="stylesheet">
@@ -623,6 +650,39 @@ function googlePhotoUrl(photoReference, apiKey) {
 }
 
 /**
+ * For a list of studio objects (each with optional placeId + cardImageUrl),
+ * fetches Google Places photos for any that are missing a CMS image.
+ * Returns a new array with cardImageUrl filled in where possible.
+ * Runs up to 6 fetches in parallel.
+ */
+export async function batchEnrichWithGooglePhotos(studios, apiKey) {
+  const key = String(apiKey || '').trim();
+  if (!key || !studios.length) return studios;
+  const out = studios.map(s => ({ ...s }));
+  const toFetch = out.filter(s => !s.cardImageUrl && s.placeId && String(s.placeId).trim());
+  if (!toFetch.length) return out;
+  const concurrency = 6;
+  for (let i = 0; i < toFetch.length; i += concurrency) {
+    await Promise.all(
+      toFetch.slice(i, i + concurrency).map(async studio => {
+        try {
+          const pid = encodeURIComponent(String(studio.placeId).trim());
+          const u = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${pid}&fields=photos&key=${encodeURIComponent(key)}`;
+          const res = await fetch(u);
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.status !== 'OK' || !data.result) return;
+          const photoRef = Array.isArray(data.result.photos) && data.result.photos[0]
+            ? data.result.photos[0].photo_reference : null;
+          if (photoRef) studio.cardImageUrl = googlePhotoUrl(photoRef, key);
+        } catch { /* skip */ }
+      })
+    );
+  }
+  return out;
+}
+
+/**
  * Merge Google Place Details when the CMS row is sparse (mirrors homepage merge idea).
  * Requires `GOOGLE_API_KEY` (Places) on the Worker / server.
  * @returns {{ doc: object, augmented: boolean }}
@@ -725,7 +785,7 @@ export async function enrichStudioWithGooglePlaces(doc, apiKey) {
 
 const STUDIO_CARD_PROJECTION = `_id, name, description, rating, reviews, priceTier, tags, badge,
   "slug": slug.current,
-  address,
+  address, placeId,
   "cardImageUrl": cardImage.asset->url`;
 
 /** "New York" → "new-york", "St. Louis" → "st-louis" */
@@ -881,6 +941,11 @@ export function buildCityPageHtml(studios, { tagSlug, tagName, tagIcon, tagColor
     '@type': 'ItemList',
     name: `${tagName} Studios in ${cityDisplayName}`,
     url: canonicalUrl,
+    about: {
+      '@type': 'Place',
+      name: cityDisplayName,
+      containedInPlace: { '@type': 'Country', name: 'United States' }
+    },
     numberOfItems: count,
     itemListElement: studios.map((s, i) => ({
       '@type': 'ListItem',
@@ -956,7 +1021,16 @@ export function buildCityPageHtml(studios, { tagSlug, tagName, tagIcon, tagColor
   <meta property="og:description" content="${escapeHtml(metaDesc)}">
   <meta property="og:url" content="${escapeHtml(canonicalUrl)}">
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Studio Locater">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:image" content="${escapeHtml(`${origin}/og-image.svg`)}">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escapeHtml(title)}">
+  <meta name="twitter:description" content="${escapeHtml(metaDesc)}">
+  <meta name="twitter:image" content="${escapeHtml(`${origin}/og-image.svg`)}">
+  <meta name="geo.region" content="US">
+  <link rel="alternate" hreflang="en-us" href="${escapeHtml(canonicalUrl)}">
+  <link rel="alternate" hreflang="x-default" href="${escapeHtml(canonicalUrl)}">
   <link rel="icon" href="/favicon.svg?v=6" type="image/svg+xml" sizes="any">
   <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
   <script type="application/ld+json">${jsonLd}</script>
@@ -1042,7 +1116,7 @@ export async function fetchAllStudioSlugs(projectId, dataset) {
 
 const STUDIO_NEIGHBORHOOD_PROJECTION = `_id, name, description, rating, reviews, priceTier, tags, badge, neighborhood,
   "slug": slug.current,
-  address,
+  address, placeId,
   "cardImageUrl": cardImage.asset->url`;
 
 /**
@@ -1101,11 +1175,12 @@ export async function fetchAllNeighborhoodTagCombos(projectId, dataset) {
 /**
  * @param {string} origin
  * @param {Array<string|{slug:string,updatedAt?:string}>} studioSlugs
- * @param {{ blogSlugs?: string[]; blogEntries?: {slug:string,lastmod?:string}[]; classSlugs?: string[]; cityPagePaths?: string[] }} [options]
+ * @param {{ blogSlugs?: string[]; blogEntries?: {slug:string,lastmod?:string}[]; classSlugs?: string[]; cityPagePaths?: string[]; extraPaths?: string[] }} [options]
  */
 export function buildSitemapXml(origin, studioSlugs, options = {}) {
   const classSlugs   = Array.isArray(options.classSlugs)   ? options.classSlugs.filter(Boolean)   : [];
   const cityPagePaths = Array.isArray(options.cityPagePaths) ? options.cityPagePaths.filter(Boolean) : [];
+  const extraPaths = Array.isArray(options.extraPaths) ? options.extraPaths.filter(Boolean) : [];
   // blogEntries supersedes blogSlugs when provided
   const blogEntries = Array.isArray(options.blogEntries)
     ? options.blogEntries.filter(e => e && e.slug)
@@ -1131,11 +1206,17 @@ export function buildSitemapXml(origin, studioSlugs, options = {}) {
     try { return new Date(ts).toISOString().split('T')[0]; } catch { return null; }
   }
 
-  const entries = [
+  const normPath = (p) => {
+    const s = String(p || '').trim();
+    if (!s) return '';
+    return s.startsWith('/') ? s : `/${s}`;
+  };
+
+  const rawEntries = [
     { loc: `${base}/`,        priority: '1.0',  changefreq: 'weekly'  },
     { loc: `${base}/blog`,    priority: '0.85', changefreq: 'weekly'  },
     { loc: `${base}/classes`, priority: '0.85', changefreq: 'weekly'  },
-    ...cityPagePaths.map((p) => ({ loc: `${base}${p}`,  priority: '0.80', changefreq: 'weekly'  })),
+    ...cityPagePaths.map((p) => ({ loc: `${base}${normPath(p)}`,  priority: '0.80', changefreq: 'weekly'  })),
     ...studioEntries.map(({ slug, updatedAt }) => ({
       loc: `${base}/studios/${encodeURIComponent(slug)}`,
       priority: '0.7', changefreq: 'weekly',
@@ -1147,7 +1228,16 @@ export function buildSitemapXml(origin, studioSlugs, options = {}) {
       lastmod: lastmod || null
     })),
     ...classSlugs.map((slug) => ({ loc: `${base}/classes/${encodeURIComponent(slug)}`, priority: '0.75', changefreq: 'monthly' })),
+    ...extraPaths.map((p) => ({ loc: `${base}${normPath(p)}`, priority: '0.78', changefreq: 'weekly' })),
   ];
+
+  const seenLoc = new Set();
+  const entries = [];
+  for (const e of rawEntries) {
+    if (!e.loc || seenLoc.has(e.loc)) continue;
+    seenLoc.add(e.loc);
+    entries.push(e);
+  }
 
   const body = entries
     .map((e) => `  <url>

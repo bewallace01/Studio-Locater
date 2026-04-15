@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
 
+# Private / app surfaces (public marketing pages stay crawlable)
+Disallow: /admin
+Disallow: /account
+Disallow: /api/
+Disallow: /auth/
+
 Sitemap: https://studiolocater.com/sitemap.xml

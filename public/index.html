@@ -10,8 +10,12 @@
   <meta name="search-api-base" content="https://studio-locater-api.wallacebailey32.workers.dev">
   <title>Studio Locater | Find Yoga, Pilates &amp; Fitness Studios Near You</title>
   <meta name="description" content="Discover 2,400+ yoga, pilates, and wellness studios across the U.S. Browse classes, read reviews, and find your perfect fitness studio with Studio Locater.">
+  <meta name="geo.region" content="US">
   <link rel="canonical" href="https://studiolocater.com/">
+  <link rel="alternate" hreflang="en-us" href="https://studiolocater.com/">
+  <link rel="alternate" hreflang="x-default" href="https://studiolocater.com/">
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Studio Locater">
   <meta property="og:url" content="https://studiolocater.com/">
   <meta property="og:title" content="Studio Locater | Find Yoga, Pilates &amp; Fitness Studios Near You">
   <meta property="og:description" content="Discover 2,400+ yoga, pilates, and wellness studios across the U.S. Browse classes, read reviews, and book your next workout.">
@@ -25,7 +29,7 @@
   <meta name="twitter:image" content="https://studiolocater.com/og-image.svg">
   <script type="application/ld+json">
   {"@context":"https://schema.org","@graph":[
-    {"@type":"WebSite","@id":"https://studiolocater.com/#website","url":"https://studiolocater.com/","name":"Studio Locater","description":"Directory of yoga, pilates, and wellness fitness studios across the United States.","publisher":{"@id":"https://studiolocater.com/#organization"}},
+    {"@type":"WebSite","@id":"https://studiolocater.com/#website","url":"https://studiolocater.com/","name":"Studio Locater","description":"Directory of yoga, pilates, and wellness fitness studios across the United States.","publisher":{"@id":"https://studiolocater.com/#organization"},"potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://studiolocater.com/?filter={search_term_string}&locate=true"},"query-input":"required name=search_term_string"}},
     {"@type":"Organization","@id":"https://studiolocater.com/#organization","name":"Studio Locater","url":"https://studiolocater.com/"},
     {"@type":"WebApplication","@id":"https://studiolocater.com/#webapp","name":"Studio Locater","url":"https://studiolocater.com/","applicationCategory":"LifestyleApplication","operatingSystem":"Web","browserRequirements":"Requires JavaScript","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
   ]}
@@ -942,7 +946,7 @@
     </li>
     <li><a href="/yoga-studios-near-me" style="display:inline-flex;align-items:center;gap:5px;"><i class="fa-solid fa-crosshairs" style="font-size:12px;color:var(--rose-deep)"></i> Near me</a></li>
     <li id="navLoginLi"><a href="#" class="nav-login-link" id="navLoginCta" onclick="event.preventDefault(); openLoginModal();">Log in</a></li>
-    <li><a class="nav-cta" id="navAuthCta" href="#" onclick="event.preventDefault(); authNavClick();">Sign Up Free</a></li>
+    <li><a class="nav-cta" id="navAuthCta" href="#" onclick="if(!state.currentUser){event.preventDefault();authNavClick();}">Sign Up Free</a></li>
   </ul>
   <button type="button" class="nav-menu-btn" id="navMenuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="navDrawer">
     <i class="fa-solid fa-bars"></i>
@@ -978,7 +982,7 @@
     </div>
     <a href="/yoga-studios-near-me" onclick="toggleNavDrawer(false)" style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-crosshairs" style="color:var(--rose-deep)"></i> Studios near me</a>
     <a href="#" class="nav-drawer-login" id="navDrawerLoginCta" onclick="event.preventDefault();toggleNavDrawer(false);openLoginModal()">Log in</a>
-    <a href="#" class="nav-drawer-cta" id="navDrawerAuthCta" onclick="event.preventDefault();toggleNavDrawer(false);authNavClick()">Sign Up Free</a>
+    <a href="#" class="nav-drawer-cta" id="navDrawerAuthCta" onclick="toggleNavDrawer(false);if(!state.currentUser){event.preventDefault();authNavClick();}">Sign Up Free</a>
   </div>
 </div>
 
@@ -2627,15 +2631,15 @@ function refreshAuthUI() {
   const loginLi = document.getElementById('navLoginLi');
   const drawerLogin = document.getElementById('navDrawerLoginCta');
   const label = state.currentUser ? 'My account' : 'Sign Up Free';
-  if (cta) cta.textContent = label;
-  if (d) d.textContent = label;
+  if (cta) { cta.textContent = label; cta.href = state.currentUser ? '/account' : '#'; }
+  if (d)   { d.textContent   = label; d.href   = state.currentUser ? '/account' : '#'; }
   const hideLogin = !!state.currentUser;
   if (loginLi) loginLi.style.display = hideLogin ? 'none' : '';
   if (drawerLogin) drawerLogin.style.display = hideLogin ? 'none' : '';
 }
 
 function authNavClick() {
-  if (state.currentUser) openAccountModal();
+  if (state.currentUser) window.location.href = '/account';
   else openSignup('join');
 }
 

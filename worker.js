@@ -55,6 +55,7 @@ import {
   buildCityPageHtml,
   cityToSlug,
   citySlugToDisplay,
+  batchEnrichWithGooglePhotos,
 } from './studio-detail-page.mjs';
 
 import {
@@ -71,6 +72,12 @@ import {
 
 import { CLASS_GUIDE_SLUGS } from './class-guide-slugs.mjs';
 import { handleMindbodyStudioApi } from './mindbody-api.mjs';
+
+const SITE_BRAND = 'Studio Locater';
+
+function defaultOgImageUrl(origin) {
+  return `${String(origin || '').replace(/\/$/, '')}/og-image.svg`;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -603,13 +610,41 @@ function buildBlogIndexHtml(origin, posts) {
     </article>`;
   }).join('');
 
+  const blogIndexLd = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    name: `${SITE_BRAND} Blog`,
+    url: `${origin}/blog`,
+    description: 'Fitness tips, class news, and wellness advice from Studio Locater.',
+    publisher: { '@type': 'Organization', name: SITE_BRAND, url: `${origin}/` }
+  }).replace(/</g, '\\u003c');
+  const ogBlog = defaultOgImageUrl(origin);
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fitness &amp; Wellness Blog — Studio Locater</title>
   <meta name="description" content="Fitness tips, class news, and wellness advice from Studio Locater.">
+  <meta name="robots" content="index, follow">
+  <meta name="geo.region" content="US">
   <link rel="canonical" href="${origin}/blog">
+  <link rel="alternate" hreflang="en-us" href="${origin}/blog">
+  <link rel="alternate" hreflang="x-default" href="${origin}/blog">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="${SITE_BRAND}">
+  <meta property="og:url" content="${origin}/blog">
+  <meta property="og:title" content="Fitness &amp; Wellness Blog — Studio Locater">
+  <meta property="og:description" content="Fitness tips, class news, and wellness advice from Studio Locater.">
+  <meta property="og:image" content="${ogBlog}">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Fitness &amp; Wellness Blog — Studio Locater">
+  <meta name="twitter:description" content="Fitness tips, class news, and wellness advice from Studio Locater.">
+  <meta name="twitter:image" content="${ogBlog}">
+  <link rel="icon" href="/favicon.svg?v=6" type="image/svg+xml" sizes="any">
+  <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
+  <script type="application/ld+json">${blogIndexLd}</script>
   ${BLOG_FONTS}
   <style>
     ${BLOG_BASE_CSS}
@@ -681,6 +716,28 @@ function buildBlogPostHtml(origin, post, opts = {}) {
       : '';
 
   const heroImg = unsplashUrl(post.image_keyword || 'fitness', 1400, 560);
+  const canonicalPost = `${origin}/blog/${encodeURIComponent(post.slug)}`;
+  const publishedIso =
+    post.published_at
+      ? new Date(post.published_at * 1000).toISOString()
+      : post.created_at
+        ? new Date(post.created_at * 1000).toISOString()
+        : '';
+  const blogPostingLd =
+    !draftPreview && publishedIso
+      ? JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'BlogPosting',
+          headline: post.title,
+          description: (post.excerpt && String(post.excerpt).trim()) || undefined,
+          image: heroImg,
+          datePublished: publishedIso,
+          dateModified: publishedIso,
+          author: { '@type': 'Organization', name: SITE_BRAND },
+          publisher: { '@type': 'Organization', name: SITE_BRAND, url: origin },
+          mainEntityOfPage: { '@type': 'WebPage', '@id': `${canonicalPost}#webpage` }
+        }).replace(/</g, '\\u003c')
+      : '';
 
   // Build quiz HTML if present
   let quizHtml = '';
@@ -760,7 +817,27 @@ function buildBlogPostHtml(origin, post, opts = {}) {
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escHtml(post.title)} — Studio Locater Blog</title>
   <meta name="description" content="${escHtml(post.excerpt || '')}">
-  ${draftPreview ? '<meta name="robots" content="noindex,nofollow">' : `<link rel="canonical" href="${origin}/blog/${escHtml(post.slug)}">`}
+  ${draftPreview
+    ? '<meta name="robots" content="noindex,nofollow">'
+    : `<link rel="canonical" href="${escHtml(canonicalPost)}">
+  <meta name="robots" content="index, follow">
+  <meta name="geo.region" content="US">
+  <link rel="alternate" hreflang="en-us" href="${escHtml(canonicalPost)}">
+  <link rel="alternate" hreflang="x-default" href="${escHtml(canonicalPost)}">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="${SITE_BRAND}">
+  <meta property="og:url" content="${escHtml(canonicalPost)}">
+  <meta property="og:title" content="${escHtml(post.title)} — Studio Locater Blog">
+  <meta property="og:description" content="${escHtml(post.excerpt || '')}">
+  <meta property="og:image" content="${escHtml(heroImg)}">
+  ${publishedIso ? `<meta property="article:published_time" content="${escHtml(publishedIso)}">` : ''}
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escHtml(post.title)}">
+  <meta name="twitter:description" content="${escHtml(post.excerpt || '')}">
+  <meta name="twitter:image" content="${escHtml(heroImg)}">
+  <link rel="icon" href="/favicon.svg?v=6" type="image/svg+xml" sizes="any">
+  <script type="application/ld+json">${blogPostingLd}</script>`}
   ${BLOG_FONTS}
   <style>
     ${BLOG_BASE_CSS}
@@ -1173,89 +1250,158 @@ async function handleAccountPage(request, env) {
   <title>My Account — Studio Locater</title>
   <meta name="robots" content="noindex,nofollow">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600&family=DM+Sans:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="icon" href="/favicon.svg?v=6" type="image/svg+xml">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
       --plum:#3D2B5E;--plum-mid:#5A4070;--plum-light:#9B88B8;
-      --rose:#E8B4B8;--rose-deep:#C97B84;--lavender:#C8B8E8;
-      --blush:#FDF0F2;--border:#EDE5FA;--gold:#C9A96E;
+      --rose:#E8B4B8;--rose-deep:#C97B84;--lavender:#C8B8E8;--lavender-deep:#B39DDB;
+      --blush:#FDF0F2;--blush-light:#FDF6F6;--border:#EDE5FA;--gold:#C9A96E;
     }
     body{font-family:'DM Sans',sans-serif;background:#FAF7FE;color:var(--plum);min-height:100vh}
-    nav{display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:64px;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
-    .nav-back{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--plum-mid);font-size:14px;font-weight:500;transition:color .2s}
+    /* Nav */
+    nav{display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:64px;
+      background:rgba(255,255,255,.92);backdrop-filter:blur(20px);
+      border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+    .nav-back{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--plum-mid);
+      font-size:14px;font-weight:500;transition:color .2s}
     .nav-back:hover{color:var(--plum)}
-    .nav-logo{font-family:'Playfair Display',serif;font-size:18px;color:var(--plum);text-decoration:none}
-    .nav-signout{font-size:13px;color:var(--plum-light);cursor:pointer;background:none;border:1.5px solid var(--border);border-radius:50px;padding:6px 14px;font-family:inherit;transition:color .2s,border-color .2s}
+    .nav-logo{font-family:'Playfair Display',serif;font-size:18px;font-style:italic;color:var(--plum);text-decoration:none}
+    .nav-signout{font-size:13px;color:var(--plum-light);cursor:pointer;background:none;
+      border:1.5px solid var(--border);border-radius:50px;padding:7px 16px;font-family:inherit;
+      transition:color .2s,border-color .2s}
     .nav-signout:hover{color:var(--rose-deep);border-color:var(--rose)}
-    main{max-width:760px;margin:48px auto;padding:0 24px 80px}
-    h1{font-family:'Playfair Display',serif;font-size:28px;font-weight:600;margin-bottom:6px}
-    .account-email{font-size:15px;color:var(--plum-mid);margin-bottom:40px}
-    section{margin-bottom:48px}
-    section h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--plum-light);font-weight:700;margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid var(--border)}
-    .empty{font-size:14px;color:var(--plum-light);padding:20px 0}
+    /* Hero strip */
+    .account-hero{background:linear-gradient(135deg,var(--rose-deep),var(--lavender-deep));
+      padding:48px 40px 40px;color:#fff}
+    .account-hero-inner{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+    .account-avatar{width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.25);
+      display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;
+      font-size:26px;font-weight:600;color:#fff;flex-shrink:0;border:2px solid rgba(255,255,255,.4)}
+    .account-hero-text h1{font-family:'Playfair Display',serif;font-size:26px;font-weight:600;
+      color:#fff;margin-bottom:4px}
+    .account-hero-email{font-size:14px;color:rgba(255,255,255,.75);margin-bottom:16px}
+    .account-stats{display:flex;gap:24px;flex-wrap:wrap}
+    .stat-chip{background:rgba(255,255,255,.18);border-radius:50px;padding:6px 16px;
+      font-size:13px;font-weight:600;color:#fff;display:flex;align-items:center;gap:6px}
+    .stat-chip i{font-size:12px;opacity:.85}
+    /* Main content */
+    main{max-width:760px;margin:0 auto;padding:40px 24px 80px}
+    section{margin-bottom:52px}
+    .section-head{display:flex;align-items:center;justify-content:space-between;
+      margin-bottom:20px;padding-bottom:12px;border-bottom:1.5px solid var(--border)}
+    .section-head h2{font-family:'Playfair Display',serif;font-size:20px;font-weight:600;color:var(--plum)}
+    .section-head a{font-size:13px;color:var(--rose-deep);text-decoration:none;font-weight:500}
+    .section-head a:hover{text-decoration:underline}
+    .empty{font-size:14px;color:var(--plum-light);padding:24px 0;
+      display:flex;align-items:center;gap:10px}
+    .empty i{font-size:18px;opacity:.5}
     /* Review cards */
-    .review-card{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:12px}
-    .review-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap}
-    .review-studio-name{font-weight:600;font-size:15px;color:var(--plum);text-decoration:none}
+    .review-card{background:#fff;border:1.5px solid var(--border);border-radius:16px;
+      padding:20px 22px;margin-bottom:12px;transition:border-color .2s,box-shadow .2s}
+    .review-card:hover{border-color:var(--lavender);box-shadow:0 4px 16px rgba(130,80,160,.08)}
+    .review-card-header{display:flex;align-items:flex-start;justify-content:space-between;
+      gap:12px;margin-bottom:10px;flex-wrap:wrap}
+    .review-studio-name{font-family:'Playfair Display',serif;font-weight:600;font-size:16px;
+      color:var(--plum);text-decoration:none;line-height:1.3}
     .review-studio-name:hover{color:var(--rose-deep)}
-    .review-stars{color:var(--gold);font-size:15px;letter-spacing:1px;white-space:nowrap}
-    .review-date{font-size:12px;color:var(--plum-light);margin-top:4px}
-    .review-comment{font-size:14px;color:var(--plum-mid);line-height:1.6;margin-top:8px}
-    /* Favorite cards */
-    .fav-card{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:12px;display:flex;align-items:center;gap:16px;text-decoration:none;transition:border-color .2s,box-shadow .2s}
+    .review-stars{color:var(--gold);font-size:16px;letter-spacing:2px;white-space:nowrap}
+    .review-meta{display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap}
+    .review-date{font-size:12px;color:var(--plum-light)}
+    .review-comment{font-size:14px;color:var(--plum-mid);line-height:1.65;margin-top:10px;
+      padding-top:10px;border-top:1px solid var(--border)}
+    /* Fav cards */
+    .fav-card{background:#fff;border:1.5px solid var(--border);border-radius:16px;
+      padding:16px 18px;margin-bottom:12px;display:flex;align-items:center;gap:16px;
+      text-decoration:none;transition:border-color .2s,box-shadow .2s}
     .fav-card:hover{border-color:var(--lavender);box-shadow:0 4px 16px rgba(130,80,160,.1)}
-    .fav-thumb{width:52px;height:52px;border-radius:10px;object-fit:cover;flex-shrink:0;background:var(--blush)}
-    .fav-thumb-placeholder{width:52px;height:52px;border-radius:10px;background:var(--blush);display:flex;align-items:center;justify-content:center;color:var(--rose-deep);font-size:22px;flex-shrink:0}
+    .fav-thumb{width:56px;height:56px;border-radius:12px;object-fit:cover;flex-shrink:0}
+    .fav-thumb-placeholder{width:56px;height:56px;border-radius:12px;background:var(--blush);
+      display:flex;align-items:center;justify-content:center;color:var(--rose-deep);
+      font-size:22px;flex-shrink:0}
     .fav-info{flex:1;min-width:0}
-    .fav-name{font-weight:600;font-size:15px;color:var(--plum);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .fav-addr{font-size:12px;color:var(--plum-light);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .fav-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
-    .fav-tag{font-size:11px;background:var(--blush);color:var(--rose-deep);border-radius:50px;padding:2px 8px;font-weight:500}
-    .loading{font-size:14px;color:var(--plum-light);padding:20px 0}
-    @media(max-width:600px){
+    .fav-name{font-family:'Playfair Display',serif;font-weight:600;font-size:16px;
+      color:var(--plum);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .fav-addr{font-size:12px;color:var(--plum-light);margin-top:3px;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      display:flex;align-items:center;gap:4px}
+    .fav-addr i{font-size:10px;color:var(--rose-deep)}
+    .fav-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+    .fav-tag{font-size:11px;background:var(--blush);color:var(--rose-deep);
+      border-radius:50px;padding:2px 9px;font-weight:500}
+    .fav-arrow{color:var(--plum-light);font-size:13px;flex-shrink:0;margin-left:4px}
+    .loading-row{display:flex;align-items:center;gap:10px;padding:20px 0;color:var(--plum-light);font-size:14px}
+    .loading-row i{font-size:16px;opacity:.5;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media(max-width:640px){
       nav{padding:0 16px;height:56px}
-      main{margin-top:28px}
-      h1{font-size:22px}
+      .account-hero{padding:36px 20px 32px}
+      main{padding:28px 16px 60px}
     }
   </style>
 </head>
 <body>
 <nav>
-  <a class="nav-back" href="/"><i class="fa-solid fa-arrow-left" style="font-size:12px"></i> Search</a>
+  <a class="nav-back" href="/"><i class="fa-solid fa-arrow-left" style="font-size:11px"></i> Back to search</a>
   <a class="nav-logo" href="/">Studio Locater</a>
-  <button class="nav-signout" id="signoutBtn">Sign out</button>
+  <button class="nav-signout" id="signoutBtn"><i class="fa-solid fa-arrow-right-from-bracket" style="font-size:11px;margin-right:5px"></i>Sign out</button>
 </nav>
-<main>
-  <h1>My Account</h1>
-  <div class="account-email" id="accountEmail"><span class="loading">Loading…</span></div>
 
+<div class="account-hero">
+  <div class="account-hero-inner">
+    <div class="account-avatar" id="accountAvatar">?</div>
+    <div class="account-hero-text">
+      <h1>My Account</h1>
+      <div class="account-hero-email" id="accountEmail">Loading…</div>
+      <div class="account-stats">
+        <div class="stat-chip" id="statReviews"><i class="fa-solid fa-star"></i> — reviews</div>
+        <div class="stat-chip" id="statFavs"><i class="fa-solid fa-heart"></i> — saved</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main>
   <section>
-    <h2>My Reviews</h2>
-    <div id="reviewsList"><span class="loading">Loading…</span></div>
+    <div class="section-head">
+      <h2>My Reviews</h2>
+    </div>
+    <div id="reviewsList"><div class="loading-row"><i class="fa-solid fa-circle-notch"></i> Loading reviews…</div></div>
   </section>
 
   <section>
-    <h2>Saved Studios</h2>
-    <div id="favsList"><span class="loading">Loading…</span></div>
+    <div class="section-head">
+      <h2>Saved Studios</h2>
+      <a href="/">Browse more studios</a>
+    </div>
+    <div id="favsList"><div class="loading-row"><i class="fa-solid fa-circle-notch"></i> Loading saved studios…</div></div>
   </section>
 </main>
 <script>
 function esc(t){var d=document.createElement('div');d.textContent=String(t||'');return d.innerHTML;}
 function fmtDate(ts){return ts?new Date(ts*1000).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):''}
-function stars(n){return'★'.repeat(n)+'☆'.repeat(5-n)}
+function stars(n){return'★'.repeat(Math.max(0,Math.min(5,n)))+'☆'.repeat(Math.max(0,5-n))}
 function slugToPath(slug){return slug?'/studios/'+slug:'#'}
 
 fetch('/api/me',{credentials:'same-origin'}).then(r=>r.json()).then(me=>{
   if(!me||!me.user){window.location='/';return;}
-  document.getElementById('accountEmail').textContent=me.user.email||'';
-}).catch(()=>{window.location='/';});
+  var email=me.user.email||'';
+  document.getElementById('accountEmail').textContent=email;
+  var initial=(email[0]||'?').toUpperCase();
+  document.getElementById('accountAvatar').textContent=initial;
+}).catch(function(){window.location='/';});
 
 fetch('/api/me/reviews',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{
   var el=document.getElementById('reviewsList');
-  if(!d.reviews||!d.reviews.length){el.innerHTML='<p class="empty">No reviews yet. Visit a studio page to leave your first review.</p>';return;}
-  el.innerHTML=d.reviews.map(function(r){
+  var reviews=d.reviews||[];
+  document.getElementById('statReviews').innerHTML='<i class="fa-solid fa-star"></i> '+reviews.length+' review'+(reviews.length!==1?'s':'');
+  if(!reviews.length){
+    el.innerHTML='<div class="empty"><i class="fa-regular fa-star"></i> No reviews yet — visit a studio page to leave your first review.</div>';
+    return;
+  }
+  el.innerHTML=reviews.map(function(r){
     var name=r.studio_name||r.studio_slug||'Studio';
     var path=slugToPath(r.studio_slug);
     return '<div class="review-card">'
@@ -1264,15 +1410,19 @@ fetch('/api/me/reviews',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{
       +'<span class="review-stars">'+stars(r.rating)+'</span>'
       +'</div>'
       +(r.comment?'<div class="review-comment">'+esc(r.comment)+'</div>':'')
-      +'<div class="review-date">'+fmtDate(r.updated_at||r.created_at)+'</div>'
+      +'<div class="review-meta"><span class="review-date"><i class="fa-regular fa-calendar" style="font-size:11px;margin-right:3px"></i>'+fmtDate(r.updated_at||r.created_at)+'</span></div>'
       +'</div>';
   }).join('');
-}).catch(function(){document.getElementById('reviewsList').innerHTML='<p class="empty">Could not load reviews.</p>';});
+}).catch(function(){document.getElementById('reviewsList').innerHTML='<div class="empty"><i class="fa-solid fa-circle-exclamation"></i> Could not load reviews.</div>';});
 
 fetch('/api/me/favorites',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{
   var el=document.getElementById('favsList');
   var favs=d.favorites||[];
-  if(!favs.length){el.innerHTML='<p class="empty">No saved studios yet. Heart a studio on the search page to save it.</p>';return;}
+  document.getElementById('statFavs').innerHTML='<i class="fa-solid fa-heart"></i> '+favs.length+' saved';
+  if(!favs.length){
+    el.innerHTML='<div class="empty"><i class="fa-regular fa-heart"></i> No saved studios yet — tap the heart on any studio card.</div>';
+    return;
+  }
   el.innerHTML=favs.map(function(f){
     var data={};try{data=JSON.parse(f.studioData||f.studio_data||'{}');}catch(e){}
     var name=f.studioName||f.studio_name||data.name||'Studio';
@@ -1287,17 +1437,20 @@ fetch('/api/me/favorites',{credentials:'same-origin'}).then(r=>r.json()).then(d=
       +thumb
       +'<div class="fav-info">'
       +'<div class="fav-name">'+esc(name)+'</div>'
-      +(addr?'<div class="fav-addr">'+esc(addr)+'</div>':'')
-      +(tags.length?'<div class="fav-tags">'+tags.slice(0,3).map(t=>'<span class="fav-tag">'+esc(t)+'</span>').join('')+'</div>':'')
+      +(addr?'<div class="fav-addr"><i class="fa-solid fa-location-dot"></i>'+esc(addr)+'</div>':'')
+      +(tags.length?'<div class="fav-tags">'+tags.slice(0,3).map(function(t){return'<span class="fav-tag">'+esc(t)+'</span>';}).join('')+'</div>':'')
       +'</div>'
+      +'<i class="fa-solid fa-chevron-right fav-arrow"></i>'
       +'</a>';
   }).join('');
-}).catch(function(){document.getElementById('favsList').innerHTML='<p class="empty">Could not load favorites.</p>';});
+}).catch(function(){document.getElementById('favsList').innerHTML='<div class="empty"><i class="fa-solid fa-circle-exclamation"></i> Could not load saved studios.</div>';});
 
 document.getElementById('signoutBtn').addEventListener('click',function(){
   fetch('/api/auth/user-logout',{method:'POST',credentials:'same-origin'}).finally(function(){window.location='/';});
 });
 </script>
+</body>
+</html>`;
 </body>
 </html>`;
   return new Response(html, {
@@ -1551,6 +1704,8 @@ async function handleCityPage(request, env, tagSlug, locationSlug) {
         headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' }
       });
     }
+    // Fill in Google Places photos for studios that don't have a CMS card image
+    studios = await batchEnrichWithGooglePhotos(studios, env.GOOGLE_API_KEY || '');
     const locationDisplayName = citySlugToDisplay(locationSlug);
     const html = buildCityPageHtml(studios, {
       tagSlug, tagName: tagInfo.tagName, tagIcon: tagInfo.icon,
@@ -1574,6 +1729,16 @@ async function handleNearMePage(request, env, tagSlug) {
   const canonicalUrl = `${origin}/${tagSlug}-studios-near-me`;
   const title = `${tagInfo.tagName} Studios Near Me | Studio Locater`;
   const metaDesc = `Find ${tagInfo.tagName.toLowerCase()} studios near your current location. Studio Locater detects your city and shows you the best local options.`;
+  const ogNear = defaultOgImageUrl(origin);
+  const nearMeLd = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: title,
+    description: metaDesc,
+    url: canonicalUrl,
+    isPartOf: { '@type': 'WebSite', name: SITE_BRAND, url: `${origin}/` },
+    spatialCoverage: { '@type': 'Country', name: 'United States' }
+  }).replace(/</g, '\\u003c');
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -1582,11 +1747,25 @@ async function handleNearMePage(request, env, tagSlug) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escHtml(title)}</title>
   <meta name="description" content="${escHtml(metaDesc)}">
+  <meta name="robots" content="index, follow">
+  <meta name="geo.region" content="US">
   <link rel="canonical" href="${escHtml(canonicalUrl)}">
+  <link rel="alternate" hreflang="en-us" href="${escHtml(canonicalUrl)}">
+  <link rel="alternate" hreflang="x-default" href="${escHtml(canonicalUrl)}">
   <meta property="og:title" content="${escHtml(title)}">
   <meta property="og:description" content="${escHtml(metaDesc)}">
   <meta property="og:url" content="${escHtml(canonicalUrl)}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="${SITE_BRAND}">
+  <meta property="og:image" content="${escHtml(ogNear)}">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escHtml(title)}">
+  <meta name="twitter:description" content="${escHtml(metaDesc)}">
+  <meta name="twitter:image" content="${escHtml(ogNear)}">
   <link rel="icon" href="/favicon.svg?v=6" type="image/svg+xml" sizes="any">
+  <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
+  <script type="application/ld+json">${nearMeLd}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
@@ -1771,13 +1950,42 @@ function buildClassesIndexHtml(origin) {
       <div class="class-index-tag">${c.difficulty}</div>
     </a>`).join('');
 
+  const classesIndexLd = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'Boutique fitness class types',
+    description:
+      'Explore every boutique fitness class type — from yoga and Pilates to HIIT, barre, Lagree, and more. Find studios near you for any style.',
+    url: `${origin}/classes`,
+    isPartOf: { '@type': 'WebSite', name: SITE_BRAND, url: `${origin}/` }
+  }).replace(/</g, '\\u003c');
+  const ogImg = defaultOgImageUrl(origin);
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Class Guide — Studio Locater</title>
   <meta name="description" content="Explore every boutique fitness class type — from yoga and Pilates to HIIT, barre, Lagree, and more. Find studios near you for any style.">
+  <meta name="robots" content="index, follow">
+  <meta name="geo.region" content="US">
   <link rel="canonical" href="${origin}/classes">
+  <link rel="alternate" hreflang="en-us" href="${origin}/classes">
+  <link rel="alternate" hreflang="x-default" href="${origin}/classes">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="${SITE_BRAND}">
+  <meta property="og:url" content="${origin}/classes">
+  <meta property="og:title" content="Class Guide — Studio Locater">
+  <meta property="og:description" content="Explore every boutique fitness class type — from yoga and Pilates to HIIT, barre, Lagree, and more.">
+  <meta property="og:image" content="${ogImg}">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Class Guide — Studio Locater">
+  <meta name="twitter:description" content="Explore every boutique fitness class type — from yoga and Pilates to HIIT, barre, Lagree, and more.">
+  <meta name="twitter:image" content="${ogImg}">
+  <link rel="icon" href="/favicon.svg?v=6" type="image/svg+xml" sizes="any">
+  <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
+  <script type="application/ld+json">${classesIndexLd}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
@@ -1857,6 +2065,28 @@ function buildClassPageHtml(origin, slug) {
       </a>`).join('');
 
   const filterParam = encodeURIComponent(c.filter);
+  const classCanonical = `${origin}/classes/${encodeURIComponent(slug)}`;
+  const classGuideLd = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebPage',
+        '@id': `${classCanonical}#webpage`,
+        name: `${c.name} classes near you`,
+        description: c.description.slice(0, 300),
+        url: classCanonical,
+        isPartOf: { '@type': 'WebSite', name: SITE_BRAND, url: `${origin}/` }
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: `${origin}/` },
+          { '@type': 'ListItem', position: 2, name: 'Classes', item: `${origin}/classes` },
+          { '@type': 'ListItem', position: 3, name: c.name, item: classCanonical }
+        ]
+      }
+    ]
+  }).replace(/</g, '\\u003c');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1864,7 +2094,25 @@ function buildClassPageHtml(origin, slug) {
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${escHtml(c.name)} Classes Near You — Studio Locater</title>
   <meta name="description" content="${escHtml(c.description.slice(0, 155))}">
-  <link rel="canonical" href="${origin}/classes/${slug}">
+  <meta name="robots" content="index, follow">
+  <meta name="geo.region" content="US">
+  <link rel="canonical" href="${escHtml(classCanonical)}">
+  <link rel="alternate" hreflang="en-us" href="${escHtml(classCanonical)}">
+  <link rel="alternate" hreflang="x-default" href="${escHtml(classCanonical)}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="${SITE_BRAND}">
+  <meta property="og:url" content="${escHtml(classCanonical)}">
+  <meta property="og:title" content="${escHtml(c.name)} Classes Near You — Studio Locater">
+  <meta property="og:description" content="${escHtml(c.description.slice(0, 155))}">
+  <meta property="og:image" content="${escHtml(heroImg)}">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escHtml(c.name)} classes near you">
+  <meta name="twitter:description" content="${escHtml(c.description.slice(0, 155))}">
+  <meta name="twitter:image" content="${escHtml(heroImg)}">
+  <link rel="icon" href="/favicon.svg?v=6" type="image/svg+xml" sizes="any">
+  <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
+  <script type="application/ld+json">${classGuideLd}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
@@ -2042,7 +2290,13 @@ async function handleSitemapXml(request, env) {
       cityPagePaths = [];
     }
 
-    const xml = buildSitemapXml(origin, slugs, { blogEntries, classSlugs, cityPagePaths });
+    const nearMePaths = Object.keys(CITY_PAGE_TAGS).map((s) => `/${s}-studios-near-me`);
+    const xml = buildSitemapXml(origin, slugs, {
+      blogEntries,
+      classSlugs,
+      cityPagePaths,
+      extraPaths: nearMePaths,
+    });
     const { bytes, headers } = sitemapResponseHeaders(xml, 600);
     if (method === 'HEAD') {
       return new Response(null, { status: 200, headers });

@@ -95,8 +95,9 @@ app.get('/sitemap.xml', async (req, res) => {
     const slugs = await fetchAllStudioSlugs(SANITY_PROJECT_ID, SANITY_DATASET);
     const proto = req.headers['x-forwarded-proto'] || req.protocol;
     const origin = `${proto}://${req.get('host') || 'localhost'}`;
+    const nearMePaths = CLASS_GUIDE_SLUGS.map((s) => `/${s}-studios-near-me`);
     res.type('application/xml').send(
-      buildSitemapXml(origin, slugs, { blogSlugs: [], classSlugs: CLASS_GUIDE_SLUGS })
+      buildSitemapXml(origin, slugs, { blogSlugs: [], classSlugs: CLASS_GUIDE_SLUGS, extraPaths: nearMePaths })
     );
   } catch (e) {
     console.error(e);
