@@ -1,14 +1,34 @@
 #!/usr/bin/env node
 /**
  * One-time script: patch neighborhood (and optionally tags) on studio documents.
- * Run: node scripts/patch-neighborhoods.mjs
+ *
+ * Requires SANITY_API_TOKEN (Editor) — set in studio/.env or .env (see studio/.env.example).
+ *
+ *   node scripts/patch-neighborhoods.mjs
  */
 import {createClient} from '@sanity/client';
+import dotenv from 'dotenv';
+import {fileURLToPath} from 'node:url';
+import {dirname, join} from 'node:path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+dotenv.config({path: join(__dirname, '..', '.env')});
+dotenv.config({path: join(__dirname, '..', 'studio', '.env')});
+
+const projectId =
+  process.env.SANITY_STUDIO_PROJECT_ID || process.env.SANITY_PROJECT_ID || 't0z5ndwm';
+const dataset = process.env.SANITY_STUDIO_DATASET || process.env.SANITY_DATASET || 'production';
+const token = process.env.SANITY_API_TOKEN || '';
+
+if (!token.trim()) {
+  console.error('Set SANITY_API_TOKEN (Editor token) in studio/.env or .env — see studio/.env.example');
+  process.exit(1);
+}
 
 const client = createClient({
-  projectId: 't0z5ndwm',
-  dataset: 'production',
-  token: 'skCFnOlwl1D1YoIasjrbMWsogKXEmqUv86fnJsZdMqG3XKhVVVE2B4lYrXxO9mNZgzA3PHnJg3lauJP0WFHElwirWSMX3Yv4tHF35Tb3h5c1TDD5g5bQQdn0O5UmAeULdQhc3CFQmxbZ9Jusy3uugnaPKFDlyVKBxn3s3T2aKcOoNIqkYVHd',
+  projectId,
+  dataset,
+  token: token.trim(),
   apiVersion: '2024-01-01',
   useCdn: false,
 });
@@ -43,7 +63,7 @@ for (const id of ids) {
   try {
     await client.request({
       method: 'POST',
-      uri: `/v2021-06-07/projects/t0z5ndwm/datasets/production/actions`,
+      uri: `/v2021-06-07/projects/${projectId}/datasets/${dataset}/actions`,
       body: {
         actions: [{
           actionType: 'sanity.action.document.publish',
