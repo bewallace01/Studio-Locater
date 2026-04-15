@@ -1451,8 +1451,6 @@ document.getElementById('signoutBtn').addEventListener('click',function(){
 </script>
 </body>
 </html>`;
-</body>
-</html>`;
   return new Response(html, {
     status: 200,
     headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
