@@ -1565,6 +1565,19 @@ function matchesLagreeMegaformerFamily(textLower) {
 }
 
 /**
+ * True when copy clearly describes yoga classes (not incidental “yoga” in unrelated phrases).
+ */
+function hasExplicitYogaInText(t) {
+  const s = String(t || '').toLowerCase();
+  return (
+    /\byoga\b|vinyasa|hatha|ashtanga|yin\s*yoga|\byin\b(?=\s|$)|hot\s*yoga|bikram|heated\s*yoga|power\s*yoga|kundalini|namaste|restorative|iyengar|anusara|jivamukti|rocket\s*yoga/.test(
+      s
+    ) ||
+    /\bflow\s+yoga\b|vinyasa\s*flow|power\s*flow|yoga\s+class|yoga\s+studio|mat\s+yoga|all[\s-]levels\s+yoga/i.test(s)
+  );
+}
+
+/**
  * Yoga pill: studios that actually offer yoga (incl. hot / vinyasa / flow) — not Lagree, Solidcore,
  * pilates-first, or barre-only venues that don’t teach yoga.
  */
@@ -1573,12 +1586,13 @@ function matchesYogaFilter(tags, blob) {
   if (tagSet.has('Lagree') || tagSet.has('Solidcore')) return false;
   if (matchesLagreeMegaformerFamily(blob)) return false;
 
-  if (tagSet.has('Pilates') && !tagSet.has('Yoga') && !tagSet.has('Hot Yoga')) return false;
+  const pilatesHeavy =
+    tagSet.has('Pilates') ||
+    /\b(?:club\s*)?pilates\b|reformer\s+pilates|mat\s+pilates|classical\s+pilates|pilates\s+reformer|pilates\s+classes\b|pilates\s+class\b|merrithew|body\s*lines|springboard|tower\s+pilates|wunda\b/i.test(
+      blob
+    );
 
-  if (
-    /\b(?:club\s*)?pilates\b|reformer\s*pilates|mat\s*pilates|classical\s*pilates\b/i.test(blob) &&
-    !/\byoga\b|vinyasa|hatha|ashtanga|hot\s*yoga|yin\s*yoga|power\s*yoga|restorative|kundalini|namaste/i.test(blob)
-  ) {
+  if (pilatesHeavy && !hasExplicitYogaInText(blob) && !tagSet.has('Hot Yoga')) {
     return false;
   }
 
@@ -1592,12 +1606,16 @@ function matchesYogaFilter(tags, blob) {
     return false;
   }
 
-  if (tagSet.has('Yoga') || tagSet.has('Hot Yoga')) return true;
+  if (tagSet.has('Hot Yoga')) return true;
 
-  if (
-    /\byoga\b|vinyasa|hatha|ashtanga|yin\s*yoga|\byin\b(?=\s|$)|kundalini|namaste|restorative|iyengar|anusara|jivamukti|power\s*yoga/.test(blob) ||
-    /\bflow\s*yoga\b|vinyasa\s*flow|power\s*flow|rocket\s*yoga/.test(blob)
-  ) {
+  if (tagSet.has('Yoga')) {
+    if ((tagSet.has('Pilates') || modalityPilatesText(blob)) && !hasExplicitYogaInText(blob)) {
+      return false;
+    }
+    return true;
+  }
+
+  if (hasExplicitYogaInText(blob)) {
     return true;
   }
 

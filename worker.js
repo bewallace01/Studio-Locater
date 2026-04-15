@@ -66,6 +66,7 @@ import {
   handleUserFavoritesPost,
   handleUserFavoritesDelete,
   notifySubscribersBlogPublished,
+  getUserSession,
 } from './user-magic-auth.mjs';
 
 import { CLASS_GUIDE_SLUGS } from './class-guide-slugs.mjs';
@@ -1847,36 +1848,51 @@ async function handleSitemapXml(request, env) {
     }
     if (!Array.isArray(slugs)) slugs = [];
 
-    let blogSlugs = [];
+    let blogEntries = [];
     try {
       if (env.DB) {
         const blogRows = await env.DB.prepare(
-          "SELECT slug FROM blog_posts WHERE status = 'published' ORDER BY published_at DESC"
+          "SELECT slug, published_at FROM blog_posts WHERE status = 'published' ORDER BY published_at DESC"
         ).all();
-        blogSlugs = (blogRows.results || []).map((r) => r.slug).filter(Boolean);
+        blogEntries = (blogRows.results || [])
+          .filter(r => r.slug)
+          .map(r => ({
+            slug: r.slug,
+            lastmod: r.published_at ? new Date(r.published_at * 1000).toISOString().split('T')[0] : null
+          }));
       }
     } catch {
-      blogSlugs = [];
+      blogEntries = [];
     }
 
     const classSlugs = [...CLASS_GUIDE_SLUGS];
 
+    // Reverse map: Sanity tag filter value → CLASS_GUIDE slug
+    const filterToSlug = new Map();
+    for (const [slug, c] of Object.entries(CLASS_GUIDE)) {
+      if (!filterToSlug.has(c.filter)) filterToSlug.set(c.filter, slug);
+    }
+
     let cityPagePaths = [];
     try {
-      const combos = await fetchAllCityTagCombos(projectId, dataset);
-      // Build tag filter→slug reverse map (filter value → first matching CLASS_GUIDE slug)
-      const filterToSlug = new Map();
-      for (const [slug, c] of Object.entries(CLASS_GUIDE)) {
-        if (!filterToSlug.has(c.filter)) filterToSlug.set(c.filter, slug);
-      }
-      cityPagePaths = combos
+      const [cityCombos, nbhdCombos] = await Promise.all([
+        fetchAllCityTagCombos(projectId, dataset),
+        fetchAllNeighborhoodTagCombos(projectId, dataset),
+      ]);
+      const cityPaths = cityCombos
         .filter(({ tag }) => filterToSlug.has(tag))
         .map(({ citySlug, tag }) => `/${filterToSlug.get(tag)}-studios-${citySlug}`);
+      const nbhdPaths = nbhdCombos
+        .filter(({ tag }) => filterToSlug.has(tag))
+        .map(({ neighborhoodSlug, tag }) => `/${filterToSlug.get(tag)}-studios-${neighborhoodSlug}`);
+      // Deduplicate (a neighborhood slug could match a city slug)
+      const seen = new Set(cityPaths);
+      cityPagePaths = [...cityPaths, ...nbhdPaths.filter(p => !seen.has(p))];
     } catch {
       cityPagePaths = [];
     }
 
-    const xml = buildSitemapXml(origin, slugs, { blogSlugs, classSlugs, cityPagePaths });
+    const xml = buildSitemapXml(origin, slugs, { blogEntries, classSlugs, cityPagePaths });
     const { bytes, headers } = sitemapResponseHeaders(xml, 600);
     if (method === 'HEAD') {
       return new Response(null, { status: 200, headers });
@@ -2114,13 +2130,20 @@ export default {
       return handleSitemapXml(request, env);
     }
 
-    // ── City landing pages: /{tagSlug}-studios-{citySlug} ───────────────────
+    // ── Near-me pages: /{tagSlug}-studios-near-me ───────────────────────────
+    for (const tagSlug of CITY_PAGE_TAG_SLUGS) {
+      if (path === `/${tagSlug}-studios-near-me`) {
+        return handleNearMePage(request, env, tagSlug);
+      }
+    }
+
+    // ── City / neighborhood landing pages: /{tagSlug}-studios-{locationSlug} ─
     for (const tagSlug of CITY_PAGE_TAG_SLUGS) {
       const prefix = `/${tagSlug}-studios-`;
       if (path.startsWith(prefix)) {
-        const citySlug = path.slice(prefix.length);
-        if (/^[a-z][a-z0-9-]*$/.test(citySlug)) {
-          return handleCityPage(request, env, tagSlug, citySlug);
+        const locationSlug = path.slice(prefix.length);
+        if (/^[a-z][a-z0-9-]*$/.test(locationSlug)) {
+          return handleCityPage(request, env, tagSlug, locationSlug);
         }
       }
     }
