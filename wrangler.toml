@@ -2,7 +2,7 @@
 #
 # Cloudflare Pages: set Build output directory to "public" (not "." or repo root).
 # Wrangler: `npm run deploy` → staging; `npm run deploy:prod` → this top-level Worker.
-name = "studio-locater"
+name = "studio-locator"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 
